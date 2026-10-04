@@ -9,7 +9,7 @@
 #include "gfc_text.h"
 #include "gfc_matrix.h"
 #include "gfc_primitives.h"
-
+#include "gf3d_obj_load.h"
 #include "gf3d_pipeline.h"
 
 
@@ -36,7 +36,7 @@ typedef struct
 typedef struct
 {
     Uint16  verts[3];
-}Face;
+}   Face;
 
 typedef struct
 {
@@ -53,7 +53,6 @@ typedef struct
 {
     GFC_TextLine        filename;
     Uint32              _refCount;
-    Uint8               _inuse;
     GFC_List           *primitives;
     GFC_Box             bounds;
 }Mesh;

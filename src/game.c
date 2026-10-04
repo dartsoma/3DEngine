@@ -19,6 +19,8 @@
 #include "gf3d_vgraphics.h"
 #include "gf3d_pipeline.h"
 #include "gf3d_swapchain.h"
+#include "gf3d_mesh.h"
+#include "model.h"
 
 extern int __DEBUG;
 
@@ -37,9 +39,13 @@ void exitGame()
 
 int main(int argc,char *argv[])
 {
+
+    Model *model;
+
+
     //local variables
     Sprite *bg;
-    //initializtion    
+    //initializtion
     parse_arguments(argc,argv);
     init_logger("gf3d.log",0);
     slog("gf3d begin");
@@ -49,6 +55,7 @@ int main(int argc,char *argv[])
     gfc_action_init(1024);
     //gf3d init
     gf3d_vgraphics_init("config/setup.cfg");
+  // max value
     gf2d_font_init("config/font.cfg");
     gf2d_actor_init(1000);
     
@@ -108,6 +115,6 @@ void game_frame_delay()
         SDL_Delay(frame_delay - diff);
     }
     fps = 1000.0/MAX(SDL_GetTicks() - then,0.001);
-//     slog("fps: %f",fps);
+    //slog("fps: %f",fps);
 }
 /*eol@eof*/
