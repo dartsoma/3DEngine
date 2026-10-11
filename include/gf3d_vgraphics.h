@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.h>
 #include "gfc_vector.h"
 #include "gfc_matrix.h"
-
+#include "model.h"
 #include "gf3d_pipeline.h"
 #include "gf3d_commands.h"
 
