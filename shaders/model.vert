@@ -3,15 +3,15 @@
 
 layout(binding = 0) uniform UniformBufferObject
 {
-    mat4 model;
-    mat4 view;
-    mat4 proj;
-    vec4 color;
+	mat4 model;
+	mat4 view;
+	mat4 proj;
+	vec4 color;
 }ubo;
 
 out gl_PerVertex
 {
-    vec4 gl_Position;
+	vec4 gl_Position;
 };
 
 layout(location = 0) in vec3 inPosition;
@@ -24,8 +24,8 @@ layout(location = 2) out vec4 outColorMod;
 
 void main()
 {
-    outUV = inUV;
-    outNormal = vec4(inNormal,0);
-    outColorMod = ubo.color;
-    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition,1.0);
+	outUV = inUV;
+	outNormal = vec4(inNormal,0);
+	outColorMod = ubo.color;
+	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition,1.0);
 }
