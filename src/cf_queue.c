@@ -23,7 +23,7 @@ void cf_queue_free(CF_Queue *q, CF_FreeFunc free_func) {
   }
 }
 
-void cf_clear(CF_Queue *q) {
+void cf_queue_clear(CF_Queue *q) {
   int i;
   for (i = 0; i < q->size; i++) {
     cf_dequeue(q);

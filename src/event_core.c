@@ -1,3 +1,4 @@
+/*
 #include "event_core.h"
 #include "simple_logger.h"
 
@@ -282,3 +283,4 @@ Uint8 event_remove_listener(EventSystem* system,
 Uint8 event_get_type_id(EventSystem* system, const char* name) { }
 
 Uint8 event_type_exists(EventSystem* system, Uint8 type_id) { }
+*/

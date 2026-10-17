@@ -21,6 +21,9 @@
 #include "gf3d_vgraphics.h"
 #include "model.h"
 
+#include "entity_core.h"
+#include "player.h"
+
 extern int __DEBUG;
 
 static int _done = 0;
@@ -33,12 +36,10 @@ void game_frame_delay();
 void exitGame() { _done = 1; }
 
 int main(int argc, char *argv[]) {
-
-  Model *model;
-
   // local variables
+
+  Entity *player;
   Sprite *bg;
-  GFC_Matrix4 mat;
   GFC_Matrix4 *view;
   GFC_Vector3D offset = {0, 10, 0};
   // initializtion
@@ -60,9 +61,9 @@ int main(int argc, char *argv[]) {
   slog_sync();
   bg = gf2d_sprite_load_image("images/bg_flat.png");
   gf2d_mouse_load("actors/mouse.actor");
-  gfc_matrix4_identity(mat);
   view = gf3d_vgraphics_get_view_matrix();
-  model = model_load("models/dino/dino.model");
+  entity_manager_init(1000);
+  player = player_create();
   // main game loop
   while (!_done) {
     gfc_input_update();
@@ -73,8 +74,7 @@ int main(int argc, char *argv[]) {
     // 2D draws
     gfc_matrix4_view(*view, offset, gfc_vector3d(0, 0, 0),
                      gfc_vector3d(0, 0, 1));
-    gf3d_model_queue_render(model, mat, GFC_COLOR_WHITE);
-
+    entity_manager_draw();
     gf2d_font_draw_line_tag("ALT+F4 to exit", FT_H1, GFC_COLOR_WHITE,
                             gfc_vector2d(10, 10));
     gf2d_mouse_draw();

@@ -99,7 +99,7 @@ Model *model_get_by_filename(const char *filename) {
   for (c = 0; c < model_manager.modelCount; c++) {
     if (model_manager.modelList[c]._refCount == 0)
       continue;
-    if (!model_manager.modelList[c].filename)
+    if (strcmp(model_manager.modelList[c].filename, "") == 0)
       continue;
 
     if (gfc_strlcmp(model_manager.modelList[c].filename, filename) == 0)
