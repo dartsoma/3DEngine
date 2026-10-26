@@ -3,6 +3,7 @@
 #include "cf_queue.h"
 #include "gfc_hashmap.h"
 #include "gfc_types.h"
+#include "gfc_vector.h"
 #include "simple_logger.h"
 #include "entity_core.h"
 #include "entity_component.h"
@@ -68,7 +69,7 @@ void entity_manager_close() {
 
   gfc_hashmap_foreach(entity_manager.entity_hash, free);
   gfc_hashmap_free(entity_manager.entity_hash);
-  entity_delete_components(); // ensure all components are reset and deleted
+  entity_delete_component_lists(); // ensure all components are reset and deleted
   free(entity_manager.entity_list);
 
 }
@@ -190,7 +191,7 @@ void entity_manager_update(){
 
 
 
-void entity_delete_components(){
+void entity_delete_component_lists(){
 
     if(entity_manager.transform_list){
     free(entity_manager.transform_list);
@@ -211,29 +212,34 @@ void entity_delete_components(){
     if(!entity_manager.render_list){
     free(entity_manager.render_list);
     }
+    return;
 }
 
-void entity_remove_component(uint32_t id, EntityComponentType type) {
+void entity_remove_component(uint32_t index, EntityComponentType type) {
 
   switch (type) {
   case EntityTransform:
-    memset(&entity_manager.transform_list[id], 0, sizeof(entity_manager.transform_list[id]));
+    memset(&entity_manager.transform_list[index], 0, sizeof(entity_manager.transform_list[index]));
     break;
   case EntityKinematics:
-    memset(&entity_manager.kinematics_list[id], 0, sizeof(entity_manager.kinematics_list[id]));
+    memset(&entity_manager.kinematics_list[index], 0, sizeof(entity_manager.kinematics_list[index]));
     break;
   case EntityResource:
-      free(entity_manager.resource_list[id].f_data);
-      free(entity_manager.resource_list[id].i_data);
-    memset(&entity_manager.resource_list[id], 0, sizeof(entity_manager.resource_list[id]));
+      if(entity_manager.resource_list[index].f_data)
+      free(entity_manager.resource_list[index].f_data);
+      if(entity_manager.resource_list[index].i_data)
+      free(entity_manager.resource_list[index].i_data);
+      if(entity_manager.resource_list[index].a_data)
+      free(entity_manager.resource_list[index].a_data);
+    memset(&entity_manager.resource_list[index], 0, sizeof(entity_manager.resource_list[index]));
     break;
   case EntityCollision:
-    free(entity_manager.collision_list[id].linetrace);
-    memset(&entity_manager.collision_list[id], 0, sizeof(entity_manager.collision_list[id]));
+    free(entity_manager.collision_list[index].linetrace);
+    memset(&entity_manager.collision_list[index], 0, sizeof(entity_manager.collision_list[index]));
     break;
   case EntityRender:
-    model_free(entity_manager.render_list[id].model);
-    memset(&entity_manager.render_list[id], 0, sizeof(entity_manager.render_list[id]));
+    model_free(entity_manager.render_list[index].model);
+    memset(&entity_manager.render_list[index], 0, sizeof(entity_manager.render_list[index]));
     break;
   }
 }
@@ -404,4 +410,82 @@ RenderComponent *entity_get_own_render(Entity *self){
     char *endptr;
     uint32_t id = strtoul(self->id, &endptr, 10);
     return entity_get_render(id);
+}
+
+
+void kinematics_accelerate(KinematicsComponent *kinematics, GFC_Vector2D *axis){
+
+    float max_accel = kinematics->acc_max;
+
+    if(axis->x != 0 && kinematics->acc.x == 0){
+        kinematics->acc.x = axis->x;
+    }  else if (axis->x != 0) {
+        kinematics->acc.x += axis->x * max_accel * 0.4 * 0.016;
+    } else {
+        kinematics->acc.x = kinematics->acc.x / DAMPENER;
+        if(fabsf(kinematics->acc.x) <= GFC_EPSILON){
+        kinematics->acc.x = 0;
+        }
+    }
+
+    if(axis->y != 0 && kinematics->acc.z == 0){
+        kinematics->acc.z = axis->y;
+    }  else if (axis->y != 0) {
+        kinematics->acc.z += axis->y * max_accel * 0.4 * 0.016;
+    } else {
+        kinematics->acc.z = kinematics->acc.z / DAMPENER;
+        if(fabsf(kinematics->acc.z) <= GFC_EPSILON){
+        kinematics->acc.z = 0;
+        }
+    }
+
+    GFC_Vector2D new_accel = gfc_vector2d(kinematics->acc.x, kinematics->acc.z);
+
+    float magnitude  = gfc_vector2d_magnitude(new_accel);
+    if(magnitude > max_accel){
+    float correction_scale = max_accel/magnitude;
+    new_accel.x *= correction_scale;
+    new_accel.y *= correction_scale;
+    }
+    kinematics->acc.x = new_accel.x;
+    kinematics->acc.z = new_accel.y;
+
+}
+
+void kinematics_velocity(KinematicsComponent *kinematics, GFC_Vector2D *axis ){
+
+    float max_vel = kinematics->vel_max;
+
+    if(kinematics->acc.x != 0){
+        kinematics->vel.x += kinematics->acc.x * 0.016;
+    } else {
+        kinematics->vel.x = kinematics->vel.x / DAMPENER;
+        if(fabsf(kinematics->vel.x) <= GFC_EPSILON){
+            kinematics->vel.x = 0;
+        }
+    }
+
+    if(kinematics->acc.z != 0){
+        kinematics->vel.z += kinematics->acc.z * 0.016;
+    } else {
+        kinematics->vel.z = kinematics->vel.z / DAMPENER;
+        if(fabsf(kinematics->vel.z) <= GFC_EPSILON){
+            kinematics->vel.z = 0;
+        }
+    }
+
+
+    GFC_Vector2D new_vel = gfc_vector2d(kinematics->vel.x, kinematics->vel.z);
+
+    float magnitude  = gfc_vector2d_magnitude(new_vel);
+    if(magnitude > max_vel){
+    float correction_scale = max_vel/magnitude;
+    new_vel.x *= correction_scale;
+    new_vel.y *= correction_scale;
+    }
+
+    kinematics->vel.x = new_vel.x;
+    kinematics->vel.z = new_vel.y;
+    // slog("x velocity: %f", kinematics->vel.x);
+    // slog("z velocity: %f", kinematics->vel.z);
 }

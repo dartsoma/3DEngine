@@ -5,6 +5,8 @@
 #include "entity_core.h"
 #include <stdint.h>
 
+#define ALLCOMPONENTS 5
+#define DAMPENER 80.0f
 // Added list of methods for specific components
 typedef enum {
   EntityTransform = 1,  //
@@ -26,7 +28,9 @@ typedef struct {
   uint8_t _inuse;
   GFC_Vector3D vel;
   GFC_Vector3D acc;
-  GFC_Vector3D direction;
+  float vel_max;
+  float acc_max;
+  GFC_Vector2D direction;
   GFC_Vector3D gravity;
 
 } KinematicsComponent;
@@ -59,10 +63,19 @@ typedef struct {
 
 } EntityResourceI;
 
+typedef struct{
+
+    float max;
+    float min;
+    GFC_Vector2D axis;
+
+} EntityResourceA;
+
 typedef struct {
-  uint8_t _inuse;
+    // Float integer axis
   EntityResourceF *f_data;
   EntityResourceI *i_data;
+  EntityResourceA *a_data;
 
 } ResourceComponent;
 
@@ -80,15 +93,18 @@ typedef struct {
 
 } CollisionComponent;
 
-void entity_delete_components();
+void entity_delete_component_lists();
 
-void entity_remove_component(uint32_t id, EntityComponentType type);
+void entity_remove_component(uint32_t index, EntityComponentType type);
 
-void entity_remove_all_components(uint32_t id);
+void entity_remove_all_component(uint32_t id);
 
 // awful remember to clear from codebase
 void *entity_get_component(uint32_t id, EntityComponentType type);
 
+void kinematics_accelerate(KinematicsComponent *kinematics,GFC_Vector2D *axis); // Lateral
+void kinematics_velocity(KinematicsComponent *kinematics, GFC_Vector2D *axis);
+void kinematics_smooth_velocity(KinematicsComponent *kinematics, GFC_Vector2D *axis, float coeff);
 
 TransformComponent *entity_get_transform(uint32_t id);
 KinematicsComponent *entity_get_kinematics(uint32_t id);

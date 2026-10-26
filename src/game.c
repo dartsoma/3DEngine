@@ -1,5 +1,4 @@
 #include <SDL.h>
-
 #include "simple_json.h"
 #include "simple_logger.h"
 
@@ -37,6 +36,9 @@ void exitGame() { _done = 1; }
 
 int main(int argc, char *argv[]) {
   // local variables
+  int lastUpdate = SDL_GetTicks();
+  int current;
+  float deltatime, deltastep = 0;
 
   Entity *player;
   Sprite *bg;
@@ -64,11 +66,33 @@ int main(int argc, char *argv[]) {
   view = gf3d_vgraphics_get_view_matrix();
   entity_manager_init(1000);
   player = player_create();
+
   // main game loop
   while (!_done) {
     gfc_input_update();
     gf2d_mouse_update();
     gf2d_font_update();
+
+    current = SDL_GetTicks();
+
+    deltatime = (current-lastUpdate) / 1000.f;
+    deltastep += deltatime;
+    entity_manager_think();
+
+
+    if (deltastep < 0) {
+        deltastep = 0; // Cap at 60 FPS
+    } else if (deltastep > 1.0f){
+        deltastep = 1.0f;
+    }
+
+    while (deltastep >= 0.016) {
+           //phys
+           deltastep-=0.016;
+           entity_manager_update();
+    }
+    lastUpdate = current;
+
     // camera updaes
     gf3d_vgraphics_render_start();
     // 2D draws

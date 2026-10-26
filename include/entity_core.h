@@ -8,9 +8,6 @@
 #include "model.h"
 #include <stdint.h>
 
-#define ALLCOMPONENTS 5
-
-//  ported from gf2d
 
 typedef struct Entity {
   uint8_t _inuse;

@@ -12,15 +12,16 @@
       "-Wno-variadic-macros",
       "-Wformat-truncation=0",
       "-I/usr/include/SDL2",
+      "-D_GNU_SOURCE=1",
       "-D_REENTRANT",
       "-I../include",
       "-I../gfc/include",
       "-I../gfc/simple_logger/include",
       "-I../gfc/simple_json/include",
       "-c",
-      "entity_core.c"
+      "player.c"
     ],
-    "directory": "/home/dartsoma/Documents/GameFolder/3DEngine/src",
-    "file": "/home/dartsoma/Documents/GameFolder/3DEngine/src/entity_core.c"
+    "directory": "/home/dartsoma/Documents/Project/3DEngine/src",
+    "file": "/home/dartsoma/Documents/Project/3DEngine/src/player.c"
   }
 ]
