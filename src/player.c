@@ -12,7 +12,6 @@
 #define AXIS_MOVE 0
 #define AXIS_CAM 1
 
-#define DAMPENING 10
 
 void move_left(Entity *self);
 void move_right(Entity *self);

@@ -85,10 +85,11 @@ typedef struct {
 
 typedef struct {
   uint8_t _inuse;
+  uint8_t type; // 0- Simple, 1- Complex , 2- Capsule
   uint32_t layer;      // I exist on X Layer
   uint32_t layer_mask; // X layer Doesn't Effect Me'
 
-  GFC_Shape bounds;
+
   RaycasterObject *linetrace;
 
 } CollisionComponent;
@@ -112,6 +113,8 @@ ResourceComponent *entity_get_resource(uint32_t id);
 CollisionComponent *entity_get_collisions(uint32_t id);
 RenderComponent *entity_get_render(uint32_t id);
 
+
+
 // Assumes you already have a reference to component
 // its for my own ease of access
 TransformComponent *entity_get_own_transform(Entity *self);
@@ -119,6 +122,9 @@ KinematicsComponent *entity_get_own_kinematics(Entity *self);
 ResourceComponent *entity_get_own_resource(Entity *self);
 CollisionComponent *entity_get_own_collision(Entity *self);
 RenderComponent *entity_get_own_render(Entity *self);
+
+void entity_world_collision(Entity *self);
+void entity_collision(Entity *self);
 
 
 #endif
