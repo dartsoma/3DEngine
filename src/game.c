@@ -1,6 +1,6 @@
-#include <SDL.h>
 #include "simple_json.h"
 #include "simple_logger.h"
+#include <SDL.h>
 
 #include "gfc_actions.h"
 #include "gfc_audio.h"
@@ -21,6 +21,7 @@
 #include "model.h"
 
 #include "entity_core.h"
+#include "level.h"
 #include "player.h"
 
 extern int __DEBUG;
@@ -64,6 +65,9 @@ int main(int argc, char *argv[]) {
   bg = gf2d_sprite_load_image("images/bg_flat.png");
   gf2d_mouse_load("actors/mouse.actor");
   view = gf3d_vgraphics_get_view_matrix();
+  if (level_setup() != 0) {
+    slog("level failed");
+  }
   entity_manager_init(1000);
   player = player_create();
 
@@ -75,21 +79,20 @@ int main(int argc, char *argv[]) {
 
     current = SDL_GetTicks();
 
-    deltatime = (current-lastUpdate) / 1000.f;
+    deltatime = (current - lastUpdate) / 1000.f;
     deltastep += deltatime;
     entity_manager_think();
 
-
     if (deltastep < 0) {
-        deltastep = 0; // Cap at 60 FPS
-    } else if (deltastep > 1.0f){
-        deltastep = 1.0f;
+      deltastep = 0; // Cap at 60 FPS
+    } else if (deltastep > 1.0f) {
+      deltastep = 1.0f;
     }
 
     while (deltastep >= 0.016) {
-           //phys
-           deltastep-=0.016;
-           entity_manager_update();
+      // phys
+      deltastep -= 0.016;
+      entity_manager_update();
     }
     lastUpdate = current;
 
