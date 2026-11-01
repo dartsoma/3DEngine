@@ -1,14 +1,14 @@
 {
     "levels":[{
-            "name": "levelname",
-            "sky": "",
+            "name": "base",
+            "sky": "sky.model",
             "statics": [{
-              "name": "floor",
+              "name": "dino",
               "collision": 1,
               "position":[0,0,0],
               "rotation":[0,0,0],
               "scale": [1,1,1],
-              "model": "filepath"
+              "model": "models/dino/dino.model"
             }],
             "entities":[{
               "type": 1,
@@ -16,7 +16,7 @@
               "rotation":[0,0,0],
               "scale": [1,1,1]
             }],
-            "music": "",
+            "music": "music.ogg",
             "bounds":{
             "dim":[-250,-250,-20],
             "size":[500,500,40]

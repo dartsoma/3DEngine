@@ -101,7 +101,9 @@ int main(int argc, char *argv[]) {
     // 2D draws
     gfc_matrix4_view(*view, offset, gfc_vector3d(0, 0, 0),
                      gfc_vector3d(0, 0, 1));
+    level_build("base");
     entity_manager_draw();
+
     gf2d_font_draw_line_tag("ALT+F4 to exit", FT_H1, GFC_COLOR_WHITE,
                             gfc_vector2d(10, 10));
     gf2d_mouse_draw();
