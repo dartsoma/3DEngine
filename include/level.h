@@ -27,7 +27,7 @@ typedef struct {
   GFC_Vector3D scale;
 
   uint8_t collision_type; // 0 - simple (bounding box), 1 - complex (mesh), 2 -
-                          // sphere (mesh)
+  uint32_t collision_mask;
 
 } StaticModel;
 
@@ -54,6 +54,13 @@ uint8_t level_populate();
 void level_clear();
 
 uint32_t level_get_static_count();
+
+const char *level_get_current();
+
+uint32_t level_get_current_index(); // cast to a 32 bit integer PLEASE!!!!!! i
+// had no other way to do error cases
+
+uint32_t level_get_count();
 
 StaticModel *level_get_static(uint32_t id);
 

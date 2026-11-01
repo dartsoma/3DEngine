@@ -6,6 +6,7 @@
 #include "gfc_vector.h"
 #include "model.h"
 #include "simple_logger.h"
+#include <stdlib.h>
 
 #include "player.h"
 
@@ -40,6 +41,8 @@ Entity *player_create() {
       (KinematicsComponent *)entity_get_own_kinematics(player);
   ResourceComponent *resource =
       (ResourceComponent *)entity_get_own_resource(player);
+  CollisionComponent *collision =
+      (CollisionComponent)entity_get_own_collision(player);
 
   resource->a_data = gfc_allocate_array(sizeof(EntityResourceA), 1);
   resource->a_data->min = -1;
@@ -54,6 +57,16 @@ Entity *player_create() {
   render->model = model_load("models/dino/dino.model");
   gfc_matrix4_identity(render->mat);
   render->color = GFC_COLOR_WHITE;
+
+  collision->type = 2;
+  collision->layer = 1;
+  collision->mask = 0;
+
+  collision->capsule = (CapsuleObject *)malloc(sizeof(CapsuleObject));
+  if (!collision->capsule) {
+    slog("Failed to build player casule");
+    return NULL;
+  }
 
   slog("Player Spawned!");
   return player;

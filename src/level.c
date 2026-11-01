@@ -114,8 +114,10 @@ uint8_t level_setup() {
           static_model->color = GFC_COLOR_WHITE;
         }
 
-        sj_object_get_uint8(sublevel, "collisions",
+        sj_object_get_uint8(sublevel, "collisiontype",
                             &static_model->collision_type);
+        sj_object_get_uint32(sublevel, "collisionmask",
+                             &static_model->collision_mask);
 
         subvalue = sj_object_get_value(sublevel, "position");
 
@@ -311,4 +313,28 @@ GFC_Box level_get_bounds() {
   uint32_t *id = (uint32_t *)gfc_hashmap_get(level_manager.level_hash,
                                              level_manager.current_level);
   return level_manager.level_list[*id].bounds;
+}
+
+const char *level_get_current() {
+
+  if (strlen(level_manager.current_level) == 0)
+    return NULL;
+
+  return level_manager.current_level;
+}
+
+uint32_t level_get_count() { return level_manager.level_count; }
+
+uint32_t level_get_current_index() {
+
+  uint32_t *index;
+
+  if (level_get_current() == NULL) {
+    return level_manager.level_count;
+  }
+
+  index = (uint32_t *)gfc_hashmap_get(level_manager.level_hash,
+                                      level_manager.current_level);
+
+  return *index;
 }
