@@ -669,8 +669,8 @@ void entity_world_collision(Entity *self) {
         switch (static_model->collision_mask) {
         case 0:
           if (collision_box_complex(static_model->model->mesh->bounds,
-                                    *entity_transform, entity_model,
-                                    *static_transform, collision_info) == 1) {
+                                    *static_transform, entity_model,
+                                    *entity_transform, collision_info) == 1) {
             collision_resolve(entity_transform, collision, collision_info);
           }
           break;
@@ -687,14 +687,16 @@ void entity_world_collision(Entity *self) {
         switch (static_model->collision_mask) {
         case 0:
           if (collision_box_capsule(static_model->model->mesh->bounds,
-                                    entity_capsule) == 1) {
+                                    *static_transform, entity_capsule,
+                                    *entity_transform, collision_info) == 1) {
             collision_resolve(entity_transform, collision, collision_info);
           }
 
           break;
         case 1:
-          if (collision_capsule_complex(entity_capsule, static_model->model) ==
-              1) {
+          if (collision_capsule_complex(entity_capsule, *entity_transform,
+                                        static_model->model, *static_transform,
+                                        collision_info) == 1) {
             collision_resolve(entity_transform, collision, collision_info);
           }
           break;
@@ -703,4 +705,26 @@ void entity_world_collision(Entity *self) {
       }
     }
   }
+}
+
+uint8_t collision_box_box(GFC_Box box1, Transform transform1, GFC_Box box2,
+                          Transform transform2, CollisionInfo *info) {}
+
+uint8_t collision_box_complex(GFC_Box box1, Transform transform1, Model *model,
+                              Transform transform2, CollisionInfo *info) {}
+uint8_t collision_box_capsule(GFC_Box box, Transform transform1,
+                              CapsuleObject *capsule, Transform transform2,
+                              CollisionInfo *info) {}
+uint8_t collision_capsule_capsule(CapsuleObject *capsule1, Transform transform1,
+                                  CapsuleObject *capsule2, Transform transform2,
+                                  CollisionInfo *info) {}
+uint8_t collision_capsule_complex(CapsuleObject *capsule, Transform transform1,
+                                  Model *model, Transform transform2,
+                                  CollisionInfo *info) {}
+uint8_t collision_complex_complex(Model *model1, Transform transform1,
+                                  Model *model2, Transform transform2,
+                                  CollisionInfo *info) {
+
+  Mesh *mesh1 = model1->mesh;
+  Mesh *mesh2 = model2->mesh;
 }
