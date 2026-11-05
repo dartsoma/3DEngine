@@ -2,6 +2,8 @@
 #define __ENTITY_COMPONENT_H__
 
 #include "entity_core.h"
+#include "gfc_color.h"
+#include "gfc_matrix.h"
 #include "gfc_primitives.h"
 #include "gfc_vector.h"
 #include <stdint.h>
@@ -112,6 +114,15 @@ typedef struct {
   uint8_t collided;
 } CollisionInfo;
 
+// object oriented bounding box
+typedef struct {
+
+  GFC_Vector3D axis;
+  GFC_Vector3D center;
+  GFC_Vector3D half_lengths;
+
+} OBB;
+
 typedef struct {
   uint8_t _inuse;
   uint8_t type;   // 0- Box, 1- Complex , 2- Capsule
@@ -170,7 +181,13 @@ void entity_world_collision(Entity *self);
 
 void entity_collision(Entity *self);
 
-// did i collide
+// assume center of bounding box is the model origin
+//
+void collision_obb_construct(GFC_Box *box, Transform *transform, OBB *obb);
+
+GFC_Vector3D collision_transform_vertex(GFC_Vector3D vertex,
+                                        Transform *transform);
+
 uint8_t collision_box_box(GFC_Box box1, Transform transform1, GFC_Box box2,
                           Transform transform2, CollisionInfo *info);
 uint8_t collision_box_complex(GFC_Box box1, Transform transform1, Model *model,

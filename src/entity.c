@@ -1,6 +1,7 @@
 #include "cf_queue.h"
 #include "entity_component.h"
 #include "entity_core.h"
+#include "float.h"
 #include "gfc_hashmap.h"
 #include "gfc_primitives.h"
 #include "gfc_types.h"
@@ -707,8 +708,181 @@ void entity_world_collision(Entity *self) {
   }
 }
 
+GFC_Vector3D collision_transform_vertex(GFC_Vector3D vertex,
+                                        Transform *transform) {
+  if (!transform)
+    return vertex;
+
+  float x = vertex.x * (*transform->scale.x);
+  float y = vertex.y * (*transform->scale.y);
+  float z = vertex.z * (*transform->scale.z);
+
+  float rx = *transform->rotation.x * GFC_DEGTORAD;
+  float ry = *transform->rotation.y * GFC_DEGTORAD;
+  float rz = *transform->rotation.z * GFC_DEGTORAD;
+
+  float cx = cosf(rx);
+  float sx = sinf(rx);
+
+  float cy = cosf(ry);
+  float sy = sinf(ry);
+
+  float cz = cosf(rz);
+  float sz = sinf(rz);
+
+  float y1 = y * cx - z * sx;
+  float z1 = y * sx + z * cx;
+
+  y = y1;
+  z = z1;
+
+  float x2 = x * cy + z * sy;
+  float z2 = -x * sy + z * cy;
+
+  x = x2;
+  z = z2;
+
+  float x3 = x * cz - y * sz;
+  float y3 = x * sz + y * cz;
+
+  x = x3;
+  y = y3;
+
+  GFC_Vector3D result = {x + transform->pos->x, y + transform->pos->y,
+                         z + transform->pos->z};
+
+  return result;
+}
+
+void collision_obb_construct(GFC_Box *box, Transform *transform, OBB *obb) {
+
+  gfc_vector3d_copy(obb->center, *transform->pos);
+
+  obb->half_lengths = (GFC_Vector3D){box->width * (*transform->scale.x) * 0.5,
+                                     box->height * (*transform->scale.y) * 0.5,
+                                     box->depth * (*transform->scale.z) * 0.5};
+
+  GFC_Vector3D rotation = {(*transform->rotation.x) * DEG_TO_RAD,
+                           (*transform->rotation.y) * DEG_TO_RAD,
+                           (*transform->rotation.z) * DEG_TO_RAD};
+
+  float x = rotation.x * GFC_DEGTORAD;
+  float y = rotation.y * GFC_DEGTORAD;
+  float z = rotation.z * GFC_DEGTORAD;
+
+  float cx = cosf(x);
+  float sx = sinf(x);
+  float cy = cosf(y);
+  float sy = sinf(y);
+  float cz = cosf(z);
+  float sz = sinf(z);
+
+  obb->axis[0] = (GFC_Vector3D){cy * cz, cy * sz, -sy};
+
+  obb->axis[1] =
+      (GFC_Vector3D){sx * sy * cz - cx * sz, sx * sy * sz + cx * cz, sx * cy};
+
+  obb->axis[2] =
+      (GFC_Vector3D){cx * sy * cz + sx * sz, cx * sy * sz - sx * cz, cx * cy};
+}
+
 uint8_t collision_box_box(GFC_Box box1, Transform transform1, GFC_Box box2,
-                          Transform transform2, CollisionInfo *info) {}
+                          Transform transform2, CollisionInfo *info) {
+
+  OBB *obb1, *obb2;
+  collision_obb_construct(&box1, &transform1, obb1);
+  collision_obb_construct(&box2, &transform2, obb2);
+
+  GFC_Vector3D delta = {obb2->center.x - obb1->center.x,
+                        obb2->center.y - obb1->center.y,
+                        obb2->center.z - obb1->center.z};
+
+  GFC_Vector3D axes[15];
+
+  // Three axes from each OBB.
+  for (int i = 0; i < 3; i++) {
+    axes[i] = obb1->axis[i];
+    axes[i + 3] = obb1->axis[i];
+  }
+
+  // Nine cross-product axes.
+  int index = 6;
+
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      gfc_vector3d_cross_product(&axes[index++], obb1->axis[i], obb2->axis[j]);
+    }
+  }
+
+  float min_depth = 1.0e30f;
+  GFC_Vector3D collision_normal = {0, 0, 0};
+
+  // test all seperating axis
+  for (int i = 0; i < 15; i++) {
+    GFC_Vector3D axis = axes[i];
+
+    float length = gfc_vector3d_magnitude(axis);
+
+    // Skip parallel axis
+    if (length < 0.00001f)
+      continue;
+
+    axis.x /= length;
+    axis.y /= length;
+    axis.z /= length;
+
+    //  Project both boxes onto the axis
+    float r1 = obb1->half_lengths.x *
+                   fabsf(gfc_vector3d_dot_product(obb1->axis[0], axis)) +
+               obb1->half_lengths.y *
+                   fabsf(gfc_vector3d_dot_product(obb1->axis[1], axis)) +
+               obb1->half_lengths.z *
+                   fabsf(gfc_vector3d_dot_product(obb1->axis[2], axis));
+
+    float r2 = obb2->half_lengths.x *
+                   fabsf(gfc_vector3d_dot_product(obb2->axis[0], axis)) +
+               obb2->half_lengths.y *
+                   fabsf(gfc_vector3d_dot_product(obb2->axis[1], axis)) +
+               obb2->half_lengths.z *
+                   fabsf(gfc_vector3d_dot_product(obb2->axis[2], axis));
+
+    float distance = fabsf(gfc_vector3d_dot_product(delta, axis));
+
+    float overlap = r1 + r2 - distance;
+
+    // can never meet
+    if (overlap < -0.0001f) {
+      if (info)
+        info->collided = 0;
+
+      return 0;
+    }
+
+    // smallest pen
+    // pushed based on that
+    if (overlap < min_depth) {
+      min_depth = overlap;
+
+      // normal points from box1 toward box2.
+      if (gfc_vector3d_dot_product(delta, axis) < 0) {
+        axis.x = -axis.x;
+        axis.y = -axis.y;
+        axis.z = -axis.z;
+      }
+
+      collision_normal = axis;
+    }
+  }
+
+  // Collision confirmed.
+  if (info) {
+    info->collided = 1;
+    info->normal = collision_normal;
+    info->depth = min_depth;
+  }
+
+  return 1;
+}
 
 uint8_t collision_box_complex(GFC_Box box1, Transform transform1, Model *model,
                               Transform transform2, CollisionInfo *info) {}
@@ -725,6 +899,74 @@ uint8_t collision_complex_complex(Model *model1, Transform transform1,
                                   Model *model2, Transform transform2,
                                   CollisionInfo *info) {
 
+  CollisionInfo temp;
+  temp = *info;
+
+  if (!model1 || !model2)
+    return 0;
+
   Mesh *mesh1 = model1->mesh;
   Mesh *mesh2 = model2->mesh;
+
+  if (!mesh1 || !mesh2)
+    return 0;
+  int p1, p2, i, j;
+
+  int count1 = gfc_list_count(mesh1->primitives);
+  int count2 = gfc_list_count(mesh2->primitives);
+
+  for (p1 = 0; p1 < count1; p1++) {
+    MeshPrimitive *prim1 = gfc_list_nth(mesh1->primitives, p1);
+
+    if (!prim1 || !prim1->objData)
+      continue;
+
+    ObjData *data1 = prim1->objData;
+
+    for (p2 = 0; p2 < count2; p2++) {
+      MeshPrimitive *prim2 = gfc_list_nth(mesh2->primitives, p2);
+
+      if (!prim2 || !prim2->objData)
+        continue;
+
+      ObjData *data2 = prim2->objData;
+
+      uint32_t triangles1 = data1->face_vert_count / 3;
+      uint32_t triangles2 = data2->face_vert_count / 3;
+
+      for (i = 0; i < triangles1; i++) {
+        Vertex *v1 = &data1->faceVertices[i * 3];
+
+        GFC_Vector3D a1 = collision_transform_vertex(v1[0].vertex, &transform1);
+
+        GFC_Vector3D a2 = collision_transform_vertex(v1[1].vertex, &transform1);
+
+        GFC_Vector3D a3 = collision_transform_vertex(v1[2].vertex, &transform1);
+
+        for (j = 0; j < triangles2; j++) {
+          Vertex *v2 = &data2->faceVertices[j * 3];
+
+          GFC_Vector3D b1 =
+              collision_transform_vertex(v2[0].vertex, &transform2);
+
+          GFC_Vector3D b2 =
+              collision_transform_vertex(v2[1].vertex, &transform2);
+
+          GFC_Vector3D b3 =
+              collision_transform_vertex(v2[2].vertex, &transform2);
+
+          if (collision_triangle_triangle(a1, a2, a3, b1, b2, b3, &temp)) {
+            if (info)
+              *info = temp;
+            return 1;
+          }
+        }
+      }
+    }
+  }
+
+  if (info)
+    info->collided = 0;
+
+  return 0;
 }
