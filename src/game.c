@@ -20,6 +20,7 @@
 #include "gf3d_vgraphics.h"
 #include "model.h"
 
+#include "entity_component.h"
 #include "entity_core.h"
 #include "level.h"
 #include "player.h"
@@ -43,8 +44,7 @@ int main(int argc, char *argv[]) {
 
   Entity *player;
   Sprite *bg;
-  GFC_Matrix4 *view;
-  GFC_Vector3D offset = {0, 10, 0};
+
   // initializtion
   parse_arguments(argc, argv);
   init_logger("gf3d.log", 0);
@@ -64,10 +64,11 @@ int main(int argc, char *argv[]) {
   slog_sync();
   bg = gf2d_sprite_load_image("images/bg_flat.png");
   gf2d_mouse_load("actors/mouse.actor");
-  view = gf3d_vgraphics_get_view_matrix();
+
   if (level_setup() != 0) {
     slog("level failed");
   }
+
   entity_manager_init(1000);
   player = player_create();
 
@@ -99,8 +100,7 @@ int main(int argc, char *argv[]) {
     // camera updaes
     gf3d_vgraphics_render_start();
     // 2D draws
-    gfc_matrix4_view(*view, offset, gfc_vector3d(0, 0, 0),
-                     gfc_vector3d(0, 0, 1));
+
     level_build("base");
     entity_manager_draw();
 

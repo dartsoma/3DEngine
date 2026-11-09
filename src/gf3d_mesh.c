@@ -4,6 +4,9 @@
 #include "gf3d_buffers.h"
 #include "gf3d_obj_load.h"
 #include "gf3d_vgraphics.h"
+#include "gfc_input.h"
+#include "gfc_primitives.h"
+#include "gfc_types.h"
 #include "simple_logger.h"
 
 #define MESH_ATTRIBUTE_COUNT 3
@@ -227,7 +230,6 @@ Uint8 gf3d_primitive_buffer_create(MeshPrimitive *prim) {
   slog("faces: %u", prim->faceCount);
   slog("face count: %u", prim->objData->face_count);
   slog("face vert count: %u", prim->objData->face_vert_count);
-
   return 1;
 }
 
@@ -299,6 +301,8 @@ Mesh *gf3d_mesh_load_obj(const char *filename) {
     return NULL;
   }
 
+  mesh->bounds =
+      construct_bounds(prim->objData->vertices, prim->objData->vertex_count);
   slog("Prim buffers created!");
 
   gfc_list_append(mesh->primitives, prim);
@@ -338,4 +342,33 @@ void gf3d_mesh_queue_render(Mesh *mesh, Pipeline *pipe, void *uboData,
     gf3d_pipeline_queue_render(pipe, prim->vertexBuffer, prim->vertexCount,
                                prim->faceBuffer, uboData, texture);
   }
+}
+
+GFC_Box construct_bounds(GFC_Vector3D *vertices, uint32_t vertex_count) {
+
+  if (!vertices)
+    return gfc_box(0, 0, 0, 0, 0, 0);
+
+  int i;
+
+  float minx, miny, minz;
+  float maxx, maxy, maxz;
+  minx = miny = minz = 1e20f;
+  maxx = maxy = maxz = GFC_EPSILON;
+
+  for (i = 0; i < vertex_count; i++) {
+    minx = minx > vertices[i].x ? vertices[i].x : minx;
+    miny = miny > vertices[i].y ? vertices[i].y : miny;
+    minz = minz > vertices[i].z ? vertices[i].z : minz;
+    maxx = maxx < vertices[i].x ? vertices[i].x : maxx;
+    maxy = maxy < vertices[i].y ? vertices[i].y : maxy;
+    maxz = maxz < vertices[i].z ? vertices[i].z : maxz;
+  }
+
+  float width, height, depth;
+  width = maxx - minx;
+  height = maxy - miny;
+  depth = maxz - minz;
+
+  return gfc_box(width / 2, height / 2, depth / 2, width, height, depth);
 }

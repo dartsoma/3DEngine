@@ -2,6 +2,8 @@
 #include "entity_component.h"
 #include "entity_core.h"
 #include "float.h"
+#include "gf3d_mesh.h"
+#include "gf3d_obj_load.h"
 #include "gfc_hashmap.h"
 #include "gfc_primitives.h"
 #include "gfc_types.h"
@@ -234,6 +236,10 @@ void entity_remove_component(uint32_t index, EntityComponentType type) {
       free(entity_manager.resource_list[index].i_data);
     if (entity_manager.resource_list[index].a_data)
       free(entity_manager.resource_list[index].a_data);
+    if (entity_manager.resource_list[index].v3_data)
+      free(entity_manager.resource_list[index].v3_data);
+    if (entity_manager.resource_list[index].v2_data)
+      free(entity_manager.resource_list[index].v2_data);
     memset(&entity_manager.resource_list[index], 0,
            sizeof(entity_manager.resource_list[index]));
     break;
@@ -410,7 +416,7 @@ ResourceComponent *entity_get_own_resource(Entity *self) {
   uint32_t id = strtoul(self->id, &endptr, 10);
   return entity_get_resource(id);
 }
-CollisionComponent *entity_get_own_collisions(Entity *self) {
+CollisionComponent *entity_get_own_collision(Entity *self) {
   if (!self)
     return NULL;
   char *endptr;
@@ -436,7 +442,7 @@ void kinematics_accelerate(KinematicsComponent *kinematics,
   if (axis->x != 0 && kinematics->acc.x == 0) {
     kinematics->acc.x = axis->x;
   } else if (axis->x != 0) {
-    kinematics->acc.x += axis->x * max_accel * 0.4 * 0.016;
+    kinematics->acc.x += axis->x * max_accel * 0.4 * DELTATIME;
   } else {
     kinematics->acc.x = kinematics->acc.x / DAMPENER;
     if (fabsf(kinematics->acc.x) <= GFC_EPSILON) {
@@ -447,7 +453,7 @@ void kinematics_accelerate(KinematicsComponent *kinematics,
   if (axis->y != 0 && kinematics->acc.z == 0) {
     kinematics->acc.z = axis->y;
   } else if (axis->y != 0) {
-    kinematics->acc.z += axis->y * max_accel * 0.4 * 0.016;
+    kinematics->acc.z += axis->y * max_accel * 0.4 * DELTATIME;
   } else {
     kinematics->acc.z = kinematics->acc.z / DAMPENER;
     if (fabsf(kinematics->acc.z) <= GFC_EPSILON) {
@@ -467,7 +473,15 @@ void kinematics_accelerate(KinematicsComponent *kinematics,
   kinematics->acc.z = new_accel.y;
 }
 
-void kinematics_velocity(KinematicsComponent *kinematics, GFC_Vector2D *axis) {
+void kinematics_fall(KinematicsComponent *kinematics) {
+
+  if (!kinematics)
+    return;
+
+  kinematics->acc.y = 9.8;
+}
+
+void kinematics_velocity(KinematicsComponent *kinematics) {
 
   if (!kinematics)
     return;
@@ -475,7 +489,7 @@ void kinematics_velocity(KinematicsComponent *kinematics, GFC_Vector2D *axis) {
   float max_vel = kinematics->vel_max;
 
   if (kinematics->acc.x != 0) {
-    kinematics->vel.x += kinematics->acc.x * 0.016;
+    kinematics->vel.x += kinematics->acc.x * DELTATIME;
   } else {
     kinematics->vel.x = kinematics->vel.x / DAMPENER;
     if (fabsf(kinematics->vel.x) <= GFC_EPSILON) {
@@ -484,7 +498,7 @@ void kinematics_velocity(KinematicsComponent *kinematics, GFC_Vector2D *axis) {
   }
 
   if (kinematics->acc.z != 0) {
-    kinematics->vel.z += kinematics->acc.z * 0.016;
+    kinematics->vel.z += kinematics->acc.z * DELTATIME;
   } else {
     kinematics->vel.z = kinematics->vel.z / DAMPENER;
     if (fabsf(kinematics->vel.z) <= GFC_EPSILON) {
@@ -502,6 +516,12 @@ void kinematics_velocity(KinematicsComponent *kinematics, GFC_Vector2D *axis) {
   }
 
   kinematics->vel.x = new_vel.x;
+  if (kinematics->vel.y < kinematics->vel_max) {
+    kinematics->vel.y += DELTATIME * kinematics->acc.y;
+  } else {
+    kinematics->vel.y = kinematics->vel_max;
+  }
+
   kinematics->vel.z = new_vel.y;
   // slog("x velocity: %f", kinematics->vel.x);
   // slog("z velocity: %f", kinematics->vel.z);
@@ -525,52 +545,61 @@ GFC_Box *render_get_bounds(Entity *self) {
   return &render->model->mesh->bounds;
 }
 
-GFC_Vector3D *transform_get_position(Entity *self) {
+Model *render_get_model(Entity *self) {
 
   if (!self)
     return NULL;
+
+  RenderComponent *render;
+
+  render = entity_get_own_render(self);
+
+  if (!render)
+    return NULL;
+
+  if (!render->model)
+    return NULL;
+
+  return render->model;
+}
+
+GFC_Vector3D transform_get_position(Entity *self) {
+
+  if (!self)
+    return gfc_vector3d(0, 0, 0);
 
   TransformComponent *transform;
 
   transform = entity_get_own_transform(self);
 
-  if (transform)
-    return NULL;
-
-  return &transform->pos;
+  return transform->pos;
 }
 
-GFC_Vector3D *transform_get_rotation(Entity *self) {
+GFC_Vector3D transform_get_rotation(Entity *self) {
 
   if (!self)
-    return NULL;
+    return gfc_vector3d(0, 0, 0);
 
   TransformComponent *transform;
 
   transform = entity_get_own_transform(self);
 
-  if (transform)
-    return NULL;
-
-  return &transform->rot;
+  return transform->rot;
 }
 
-GFC_Vector3D *transform_get_scale(Entity *self) {
+GFC_Vector3D transform_get_scale(Entity *self) {
 
   if (!self)
-    return NULL;
+    return gfc_vector3d(0, 0, 0);
 
   TransformComponent *transform;
 
   transform = entity_get_own_transform(self);
 
-  if (transform)
-    return NULL;
-
-  return &transform->scale;
+  return transform->scale;
 }
 
-void *entity_transform_copy(Entity *self, Transform *transform) {
+void *entity_transform_get(Entity *self, Transform *transform) {
 
   if (!self)
     return NULL;
@@ -601,8 +630,8 @@ void entity_world_collision(Entity *self) {
   CapsuleObject *entity_capsule;
   CollisionComponent *collision;
   Model *entity_model;
-  CollisionInfo *collision_info;
-  Transform *entity_transform, *static_transform;
+  CollisionInfo *collision_info = {0};
+  Transform *entity_transform = {0}, *static_transform = {0};
 
   if (level_get_current_index() == level_get_count()) {
     slog("No current level");
@@ -615,7 +644,7 @@ void entity_world_collision(Entity *self) {
   if (collision->_inuse == 0) {
     return;
   }
-  entity_transform_copy(self, entity_transform);
+  entity_transform_get(self, entity_transform);
   entity_model = render_get_model(self);
   entity_box = render_get_bounds(self);
 
@@ -713,13 +742,13 @@ GFC_Vector3D collision_transform_vertex(GFC_Vector3D vertex,
   if (!transform)
     return vertex;
 
-  float x = vertex.x * (*transform->scale.x);
-  float y = vertex.y * (*transform->scale.y);
-  float z = vertex.z * (*transform->scale.z);
+  float x = vertex.x * transform->scale->x;
+  float y = vertex.y * transform->scale->y;
+  float z = vertex.z * transform->scale->z;
 
-  float rx = *transform->rotation.x * GFC_DEGTORAD;
-  float ry = *transform->rotation.y * GFC_DEGTORAD;
-  float rz = *transform->rotation.z * GFC_DEGTORAD;
+  float rx = transform->rot->x * GFC_DEGTORAD;
+  float ry = transform->rot->y * GFC_DEGTORAD;
+  float rz = transform->rot->z * GFC_DEGTORAD;
 
   float cx = cosf(rx);
   float sx = sinf(rx);
@@ -756,15 +785,15 @@ GFC_Vector3D collision_transform_vertex(GFC_Vector3D vertex,
 
 void collision_obb_construct(GFC_Box *box, Transform *transform, OBB *obb) {
 
-  gfc_vector3d_copy(obb->center, *transform->pos);
+  gfc_vector3d_copy(obb->center, (*transform->pos));
 
-  obb->half_lengths = (GFC_Vector3D){box->width * (*transform->scale.x) * 0.5,
-                                     box->height * (*transform->scale.y) * 0.5,
-                                     box->depth * (*transform->scale.z) * 0.5};
+  obb->half_lengths = (GFC_Vector3D){box->w * transform->scale->x * 0.5,
+                                     box->h * transform->scale->y * 0.5,
+                                     box->d * transform->scale->z * 0.5};
 
-  GFC_Vector3D rotation = {(*transform->rotation.x) * DEG_TO_RAD,
-                           (*transform->rotation.y) * DEG_TO_RAD,
-                           (*transform->rotation.z) * DEG_TO_RAD};
+  GFC_Vector3D rotation = {transform->rot->x * GFC_DEGTORAD,
+                           transform->rot->y * GFC_DEGTORAD,
+                           transform->rot->z * GFC_DEGTORAD};
 
   float x = rotation.x * GFC_DEGTORAD;
   float y = rotation.y * GFC_DEGTORAD;
@@ -789,7 +818,7 @@ void collision_obb_construct(GFC_Box *box, Transform *transform, OBB *obb) {
 uint8_t collision_box_box(GFC_Box box1, Transform transform1, GFC_Box box2,
                           Transform transform2, CollisionInfo *info) {
 
-  OBB *obb1, *obb2;
+  OBB *obb1 = {0}, *obb2 = {0};
   collision_obb_construct(&box1, &transform1, obb1);
   collision_obb_construct(&box2, &transform2, obb2);
 
@@ -878,31 +907,208 @@ uint8_t collision_box_box(GFC_Box box1, Transform transform1, GFC_Box box2,
   if (info) {
     info->collided = 1;
     info->normal = collision_normal;
-    info->depth = min_depth;
+    info->penetration_depth = min_depth;
   }
 
   return 1;
 }
 
 uint8_t collision_box_complex(GFC_Box box1, Transform transform1, Model *model,
-                              Transform transform2, CollisionInfo *info) {}
+                              Transform transform2, CollisionInfo *info) {
+  return 0;
+}
+
+// most important
 uint8_t collision_box_capsule(GFC_Box box, Transform transform1,
                               CapsuleObject *capsule, Transform transform2,
-                              CollisionInfo *info) {}
+                              CollisionInfo *info) {
+  return 0;
+}
 uint8_t collision_capsule_capsule(CapsuleObject *capsule1, Transform transform1,
                                   CapsuleObject *capsule2, Transform transform2,
-                                  CollisionInfo *info) {}
+                                  CollisionInfo *info) {
+  return 0;
+}
+// most important
 uint8_t collision_capsule_complex(CapsuleObject *capsule, Transform transform1,
                                   Model *model, Transform transform2,
-                                  CollisionInfo *info) {}
+                                  CollisionInfo *info) {
+  return 0;
+}
+
+void collision_project_triangle(GFC_Vector3D a, GFC_Vector3D b, GFC_Vector3D c,
+                                GFC_Vector3D axis, float *min, float *max) {
+  float p1 = gfc_vector3d_dot_product(a, axis);
+  float p2 = gfc_vector3d_dot_product(b, axis);
+  float p3 = gfc_vector3d_dot_product(c, axis);
+
+  *min = fminf(p1, fminf(p2, p3));
+  *max = fmaxf(p1, fmaxf(p2, p3));
+}
+
+uint8_t collision_triangle_triangle(GFC_Vector3D a1, GFC_Vector3D a2,
+                                    GFC_Vector3D a3,
+
+                                    GFC_Vector3D b1, GFC_Vector3D b2,
+                                    GFC_Vector3D b3,
+
+                                    CollisionInfo *info) {
+  if (info)
+    *info = (CollisionInfo){0};
+
+  GFC_Triangle3D triA = gfc_triangle(a1, a2, a3);
+  GFC_Triangle3D triB = gfc_triangle(b1, b2, b3);
+
+  GFC_Vector3D A[3] = {a1, a2, a3};
+  GFC_Vector3D B[3] = {b1, b2, b3};
+
+  GFC_Vector3D edgesA[3], edgesB[3];
+  gfc_vector3d_sub(edgesA[0], a2, a1);
+  gfc_vector3d_sub(edgesA[1], a3, a2);
+  gfc_vector3d_sub(edgesA[2], a1, a3);
+
+  gfc_vector3d_sub(edgesB[0], b2, b1);
+  gfc_vector3d_sub(edgesB[1], b3, b2);
+  gfc_vector3d_sub(edgesB[2], b1, b3);
+
+  // face normals
+  GFC_Vector3D normalA = gfc_triangle_get_normal(triA);
+  GFC_Vector3D normalB = gfc_triangle_get_normal(triB);
+
+  // scrap bad triangles
+  if (gfc_vector3d_magnitude(normalA) <= GFC_EPSILON ||
+      gfc_vector3d_magnitude(normalB) <= GFC_EPSILON)
+    return 0;
+
+  // unit edges so cross product length = sine of the angle (parallel test)
+  for (int i = 0; i < 3; i++) {
+    gfc_vector3d_normalize(&edgesA[i]);
+    gfc_vector3d_normalize(&edgesB[i]);
+  }
+
+  GFC_Vector3D axes[17];
+  int axisCount = 0;
+
+  // face normals first so they win ties
+  axes[axisCount++] = normalA;
+  axes[axisCount++] = normalB;
+
+  // in-plane edge normals (needed for coplanar triangles)
+  for (int i = 0; i < 3; i++) {
+    gfc_vector3d_cross_product(&axes[axisCount++], normalA, edgesA[i]);
+    gfc_vector3d_cross_product(&axes[axisCount++], normalB, edgesB[i]);
+  }
+
+  // edge x edge
+  for (int i = 0; i < 3; i++)
+    for (int j = 0; j < 3; j++)
+      gfc_vector3d_cross_product(&axes[axisCount++], edgesA[i], edgesB[j]);
+
+  float bestDepth = FLT_MAX;
+  GFC_Vector3D bestNormal = {0, 0, 0};
+
+  for (int i = 0; i < axisCount; i++) {
+    GFC_Vector3D axis = axes[i];
+    float axisLength = gfc_vector3d_magnitude(axis);
+
+    // ignore parallel
+    // id have used epsilon but thats too precise
+    if (axisLength <= 1e-3f)
+      continue;
+
+    gfc_vector3d_scale(axis, axis, 1.0f / axisLength);
+
+    float minA, maxA, minB, maxB;
+    collision_project_triangle(a1, a2, a3, axis, &minA, &maxA);
+    collision_project_triangle(b1, b2, b3, axis, &minB, &maxB);
+
+    // separating axis found
+    if (maxA < minB - GFC_EPSILON || maxB < minA - GFC_EPSILON)
+      return 0;
+
+    float dPos = maxA - minB;
+    float dNeg = maxB - minA;
+
+    float depth;
+    GFC_Vector3D n;
+    if (dPos < dNeg) {
+      depth = dPos;
+      n = axis;
+    } else {
+      depth = dNeg;
+      gfc_vector3d_scale(n, axis, -1.0f);
+    }
+    if (depth < 0.0f)
+      depth = 0.0f;
+
+    // edge threshold
+    float threshold = (i < 8) ? bestDepth : bestDepth * 0.95f;
+    if (depth < threshold) {
+      bestDepth = depth;
+      bestNormal = n;
+    }
+  }
+
+  if (bestDepth == FLT_MAX)
+    return 0;
+
+  if (info) {
+    // contact point: average of where each triangle's edges pierce the other
+    GFC_Vector3D sum = {0, 0, 0};
+    GFC_Vector3D hit;
+    int hits = 0;
+
+    for (int i = 0; i < 3; i++) {
+      if (gfc_triangle_edge_test(gfc_edge3d_from_vectors(A[i], A[(i + 1) % 3]),
+                                 triB, &hit)) {
+        gfc_vector3d_add(sum, sum, hit);
+        hits++;
+      }
+      if (gfc_triangle_edge_test(gfc_edge3d_from_vectors(B[i], B[(i + 1) % 3]),
+                                 triA, &hit)) {
+        gfc_vector3d_add(sum, sum, hit);
+        hits++;
+      }
+    }
+
+    // coplanar overlap: edges never cross the plane, use contained vertices
+    if (hits == 0) {
+      for (int i = 0; i < 3; i++) {
+        if (gfc_point_in_triangle(A[i], triB)) {
+          gfc_vector3d_add(sum, sum, A[i]);
+          hits++;
+        }
+        if (gfc_point_in_triangle(B[i], triA)) {
+          gfc_vector3d_add(sum, sum, B[i]);
+          hits++;
+        }
+      }
+    }
+
+    // last resort: midpoint of the two triangle centers
+    if (hits == 0) {
+      for (int i = 0; i < 3; i++) {
+        gfc_vector3d_add(sum, sum, A[i]);
+        gfc_vector3d_add(sum, sum, B[i]);
+      }
+      hits = 6;
+    }
+
+    info->collided = 1;
+    info->normal = bestNormal;
+    info->penetration_depth = bestDepth;
+    gfc_vector3d_scale(info->contact_point, sum, 1.0f / (float)hits);
+  }
+
+  return 1;
+}
+// MESHES COLLIDING WITH MESHES (DO NOT USE OFTEN) if ever
+// this is just an edge case
 uint8_t collision_complex_complex(Model *model1, Transform transform1,
                                   Model *model2, Transform transform2,
                                   CollisionInfo *info) {
 
-  CollisionInfo temp;
-  temp = *info;
-
-  if (!model1 || !model2)
+  if (!model1 || !model2 || !info)
     return 0;
 
   Mesh *mesh1 = model1->mesh;
@@ -910,63 +1116,150 @@ uint8_t collision_complex_complex(Model *model1, Transform transform1,
 
   if (!mesh1 || !mesh2)
     return 0;
-  int p1, p2, i, j;
+
+  CollisionInfo *hits = NULL;
+  int hitCount = 0, hitCap = 0;
 
   int count1 = gfc_list_count(mesh1->primitives);
   int count2 = gfc_list_count(mesh2->primitives);
 
-  for (p1 = 0; p1 < count1; p1++) {
-    MeshPrimitive *prim1 = gfc_list_nth(mesh1->primitives, p1);
+  for (int p2 = 0; p2 < count2; p2++) {
 
-    if (!prim1 || !prim1->objData)
+    MeshPrimitive *prim2 = gfc_list_nth(mesh2->primitives, p2);
+    if (!prim2 || !prim2->objData)
       continue;
 
-    ObjData *data1 = prim1->objData;
+    ObjData *data2 = prim2->objData;
+    uint32_t triangles2 = data2->face_vert_count / 3;
+    if (triangles2 == 0)
+      continue;
 
-    for (p2 = 0; p2 < count2; p2++) {
-      MeshPrimitive *prim2 = gfc_list_nth(mesh2->primitives, p2);
+    // transform B once per primitive instead of once per A triangle
+    GFC_Vector3D *wB = malloc(sizeof(GFC_Vector3D) * triangles2 * 3);
+    if (!wB)
+      continue;
 
-      if (!prim2 || !prim2->objData)
+    for (uint32_t j = 0; j < triangles2 * 3; j++)
+      wB[j] = collision_transform_vertex(data2->faceVertices[j].vertex,
+                                         &transform2);
+
+    for (int p1 = 0; p1 < count1; p1++) {
+
+      MeshPrimitive *prim1 = gfc_list_nth(mesh1->primitives, p1);
+      if (!prim1 || !prim1->objData)
         continue;
 
-      ObjData *data2 = prim2->objData;
-
+      ObjData *data1 = prim1->objData;
       uint32_t triangles1 = data1->face_vert_count / 3;
-      uint32_t triangles2 = data2->face_vert_count / 3;
 
-      for (i = 0; i < triangles1; i++) {
+      for (uint32_t i = 0; i < triangles1; i++) {
+
         Vertex *v1 = &data1->faceVertices[i * 3];
-
         GFC_Vector3D a1 = collision_transform_vertex(v1[0].vertex, &transform1);
-
         GFC_Vector3D a2 = collision_transform_vertex(v1[1].vertex, &transform1);
-
         GFC_Vector3D a3 = collision_transform_vertex(v1[2].vertex, &transform1);
 
-        for (j = 0; j < triangles2; j++) {
-          Vertex *v2 = &data2->faceVertices[j * 3];
+        GFC_Box boxA = gfc_triangle_get_bounding_box(gfc_triangle(a1, a2, a3));
 
-          GFC_Vector3D b1 =
-              collision_transform_vertex(v2[0].vertex, &transform2);
+        for (uint32_t j = 0; j < triangles2; j++) {
 
-          GFC_Vector3D b2 =
-              collision_transform_vertex(v2[1].vertex, &transform2);
+          GFC_Vector3D b1 = wB[j * 3];
+          GFC_Vector3D b2 = wB[j * 3 + 1];
+          GFC_Vector3D b3 = wB[j * 3 + 2];
 
-          GFC_Vector3D b3 =
-              collision_transform_vertex(v2[2].vertex, &transform2);
+          // cheap broad reject before the SAT
+          if (!gfc_box_overlap(boxA, gfc_triangle_get_bounding_box(
+                                         gfc_triangle(b1, b2, b3))))
+            continue;
 
-          if (collision_triangle_triangle(a1, a2, a3, b1, b2, b3, &temp)) {
-            if (info)
-              *info = temp;
-            return 1;
+          CollisionInfo candidate = {0};
+
+          if (collision_triangle_triangle(a1, a2, a3, b1, b2, b3, &candidate)) {
+            if (hitCount == hitCap) {
+              int newCap = hitCap ? hitCap * 2 : 32;
+              CollisionInfo *grown =
+                  realloc(hits, sizeof(CollisionInfo) * newCap);
+              if (!grown)
+                continue;
+              hits = grown;
+              hitCap = newCap;
+            }
+            hits[hitCount++] = candidate;
           }
         }
       }
     }
+
+    free(wB);
   }
 
-  if (info)
-    info->collided = 0;
+  if (hitCount == 0) {
+    free(hits);
+    *info = (CollisionInfo){0};
+    return 0;
+  }
 
-  return 0;
+  int deepest = 0;
+  for (int i = 1; i < hitCount; i++)
+    if (hits[i].penetration_depth > hits[deepest].penetration_depth)
+      deepest = i;
+
+  GFC_Vector3D refNormal = hits[deepest].normal;
+
+  GFC_Vector3D sumNormal = {0, 0, 0};
+  GFC_Vector3D sumContact = {0, 0, 0};
+  GFC_Vector3D t;
+  float sumWeight = 0.0f;
+
+  for (int i = 0; i < hitCount; i++) {
+    if (gfc_vector3d_dot_product(hits[i].normal, refNormal) <
+        0.2f) // normals align with deepest
+      continue;
+
+    float w = hits[i].penetration_depth + 1e-4f; // zero-depth still counts
+
+    gfc_vector3d_scale(t, hits[i].normal, w);
+    gfc_vector3d_add(sumNormal, sumNormal, t);
+
+    gfc_vector3d_scale(t, hits[i].contact_point, w);
+    gfc_vector3d_add(sumContact, sumContact, t);
+
+    sumWeight += w;
+  }
+
+  CollisionInfo best = {0};
+  best.collided = 1;
+  best.penetration_depth = hits[deepest].penetration_depth;
+
+  if (gfc_vector3d_magnitude(sumNormal) > GFC_EPSILON) {
+    best.normal = sumNormal;
+    gfc_vector3d_normalize(&best.normal);
+  } else {
+    best.normal = refNormal;
+  }
+
+  gfc_vector3d_scale(best.contact_point, sumContact, 1.0f / sumWeight);
+
+  free(hits);
+  *info = best;
+  return 1;
+}
+
+void collision_resolve(Transform *transform, CollisionComponent *collision,
+                       const CollisionInfo *info) {
+
+  if (!info)
+    return;
+
+  float push = fmaxf(info->penetration_depth - 0.005f, 0.0f) / 0.8f;
+
+  if (push <= 0.0f)
+    return;
+
+  GFC_Vector3D move;
+
+  GFC_Vector3D p = *transform->pos;
+  gfc_vector3d_scale(move, info->normal, -push);
+  gfc_vector3d_add(p, p, move);
+  *transform->pos = p;
 }

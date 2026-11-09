@@ -75,4 +75,6 @@ VkVertexInputBindingDescription *gf3d_mesh_get_bind_description();
 void gf3d_mesh_queue_render(Mesh *mesh, Pipeline *pipe, void *uboData,
                             Texture *texture);
 
+GFC_Box construct_bounds(GFC_Vector3D *vertices, uint32_t vertex_count);
+
 #endif

@@ -10,6 +10,7 @@
 
 #define ALLCOMPONENTS 5
 #define DAMPENER 80.0f
+#define DELTATIME 0.016f
 // Added list of methods for specific components
 typedef enum {
   EntityTransform = 1,  //
@@ -79,6 +80,8 @@ typedef struct {
   EntityResourceF *f_data;
   EntityResourceI *i_data;
   EntityResourceA *a_data;
+  GFC_Vector3D *v3_data;
+  GFC_Vector3D *v2_data;
 
 } ResourceComponent;
 
@@ -117,7 +120,7 @@ typedef struct {
 // object oriented bounding box
 typedef struct {
 
-  GFC_Vector3D axis;
+  GFC_Vector3D axis[3];
   GFC_Vector3D center;
   GFC_Vector3D half_lengths;
 
@@ -150,9 +153,8 @@ void *entity_get_component(uint32_t id, EntityComponentType type);
 
 void kinematics_accelerate(KinematicsComponent *kinematics,
                            GFC_Vector2D *axis); // Lateral
-void kinematics_velocity(KinematicsComponent *kinematics, GFC_Vector2D *axis);
-void kinematics_smooth_velocity(KinematicsComponent *kinematics,
-                                GFC_Vector2D *axis, float coeff);
+void kinematics_fall(KinematicsComponent *kinematics);
+void kinematics_velocity(KinematicsComponent *kinematics);
 
 TransformComponent *entity_get_transform(uint32_t id);
 KinematicsComponent *entity_get_kinematics(uint32_t id);
@@ -168,11 +170,11 @@ ResourceComponent *entity_get_own_resource(Entity *self);
 CollisionComponent *entity_get_own_collision(Entity *self);
 RenderComponent *entity_get_own_render(Entity *self);
 
-Transform *entity_tranform_populate(Entity *self, Transform *transform);
+Transform *entity_tranform_get(Entity *self, Transform *transform);
 
-GFC_Vector3D *transform_get_position(Entity *self);
-GFC_Vector3D *transform_get_rotation(Entity *self);
-GFC_Vector3D *transform_get_scale(Entity *self);
+GFC_Vector3D transform_get_position(Entity *self);
+GFC_Vector3D transform_get_rotation(Entity *self);
+GFC_Vector3D transform_get_scale(Entity *self);
 
 GFC_Box *render_get_bounds(Entity *self);
 Model *render_get_model(Entity *self);
@@ -207,5 +209,8 @@ uint8_t collision_complex_complex(Model *model1, Transform transform1,
 
 void collision_resolve(Transform *transform, CollisionComponent *collision,
                        const CollisionInfo *info);
+
+void collision_resolve_pair(Transform *transform, CollisionComponent *collision,
+                            const CollisionInfo *info);
 
 #endif

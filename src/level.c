@@ -80,7 +80,6 @@ uint8_t level_setup() {
     }
 
     sublevel = sj_object_get_value(leveljson, "statics");
-
     static_count = sj_array_get_count(sublevel);
     level_manager.level_list[i].static_hash = gfc_hashmap_new();
     if (static_count > 0) {
@@ -90,23 +89,23 @@ uint8_t level_setup() {
 
       for (j = 0; j < static_count; j++) {
 
-        sublevel = sj_array_get_nth(sublevel, j);
+        subvalue = sj_array_get_nth(sublevel, j);
         static_model = &level_manager.level_list[i].static_list[j];
 
-        if (strlen(sj_object_get_string(sublevel, "name")) > 0) {
+        if (strlen(sj_object_get_string(subvalue, "name")) > 0) {
 
-          strncpy(static_model->name, sj_object_get_string(sublevel, "name"),
+          strncpy(static_model->name, sj_object_get_string(subvalue, "name"),
                   sizeof(static_model->name) - 1);
           static_model->name[sizeof(static_model->name) - 1] = '\0';
-          uint32_t *index = (uint32_t *)malloc(sizeof(uint32_t *));
+          uint32_t *index = (uint32_t *)malloc(sizeof(uint32_t));
           *index = j;
           gfc_hashmap_insert(level_manager.level_list[i].static_hash,
                              static_model->name, index);
         }
 
-        if (strlen(sj_object_get_string(sublevel, "model")) > 0) {
+        if (strlen(sj_object_get_string(subvalue, "model")) > 0) {
           strncpy(static_model->modelpath,
-                  sj_object_get_string(sublevel, "model"),
+                  sj_object_get_string(subvalue, "model"),
                   sizeof(static_model->modelpath) - 1);
           static_model->modelpath[sizeof(static_model->modelpath) - 1] = '\0';
           static_model->model = model_new();
@@ -114,24 +113,26 @@ uint8_t level_setup() {
           static_model->color = GFC_COLOR_WHITE;
         }
 
-        sj_object_get_uint8(sublevel, "collisiontype",
+        sj_object_get_uint8(subvalue, "collisiontype",
                             &static_model->collision_type);
-        sj_object_get_uint32(sublevel, "collisionmask",
+        sj_object_get_uint32(subvalue, "collisionmask",
                              &static_model->collision_mask);
 
-        subvalue = sj_object_get_value(sublevel, "position");
+        subvalue = sj_object_get_value(subvalue, "position");
 
         sj_get_float_value(sj_array_get_nth(subvalue, 0), &static_model->pos.x);
         sj_get_float_value(sj_array_get_nth(subvalue, 1), &static_model->pos.y);
         sj_get_float_value(sj_array_get_nth(subvalue, 2), &static_model->pos.z);
 
-        subvalue = sj_object_get_value(sublevel, "rotation");
+        subvalue = sj_array_get_nth(sublevel, j);
+        subvalue = sj_object_get_value(subvalue, "rotation");
 
         sj_get_float_value(sj_array_get_nth(subvalue, 0), &static_model->rot.x);
         sj_get_float_value(sj_array_get_nth(subvalue, 1), &static_model->rot.y);
         sj_get_float_value(sj_array_get_nth(subvalue, 2), &static_model->rot.z);
 
-        subvalue = sj_object_get_value(sublevel, "scale");
+        subvalue = sj_array_get_nth(sublevel, j);
+        subvalue = sj_object_get_value(subvalue, "scale");
 
         sj_get_float_value(sj_array_get_nth(subvalue, 0),
                            &static_model->scale.x);
@@ -150,12 +151,12 @@ uint8_t level_setup() {
           sizeof(EntityRegistry) * level_manager.level_list[i].entity_count);
       for (j = 0; j < entity_count; j++) {
 
-        sublevel = sj_array_get_nth(sublevel, j);
+        subvalue = sj_array_get_nth(sublevel, j);
         entity_register = &level_manager.level_list[i].entity_registry[j];
 
-        sj_object_get_uint8(sublevel, "type", &entity_register->type);
+        sj_object_get_uint8(subvalue, "type", &entity_register->type);
 
-        subvalue = sj_object_get_value(sublevel, "position");
+        subvalue = sj_object_get_value(subvalue, "position");
 
         sj_get_float_value(sj_array_get_nth(subvalue, 0),
                            &entity_register->pos.x);
@@ -164,7 +165,8 @@ uint8_t level_setup() {
         sj_get_float_value(sj_array_get_nth(subvalue, 2),
                            &entity_register->pos.z);
 
-        subvalue = sj_object_get_value(sublevel, "rotation");
+        subvalue = sj_array_get_nth(sublevel, j);
+        subvalue = sj_object_get_value(subvalue, "rotation");
 
         sj_get_float_value(sj_array_get_nth(subvalue, 0),
                            &entity_register->rot.x);
@@ -173,7 +175,8 @@ uint8_t level_setup() {
         sj_get_float_value(sj_array_get_nth(subvalue, 2),
                            &entity_register->rot.z);
 
-        subvalue = sj_object_get_value(sublevel, "scale");
+        subvalue = sj_array_get_nth(sublevel, j);
+        subvalue = sj_object_get_value(subvalue, "scale");
 
         sj_get_float_value(sj_array_get_nth(subvalue, 0),
                            &entity_register->scale.x);
@@ -181,34 +184,35 @@ uint8_t level_setup() {
                            &entity_register->scale.y);
         sj_get_float_value(sj_array_get_nth(subvalue, 2),
                            &entity_register->scale.z);
-
-        sublevel = sj_object_get_value(leveljson, "bounds");
-
-        subvalue = sj_object_get_value(sublevel, "dim");
-        sj_get_float_value(sj_array_get_nth(subvalue, 0),
-                           &level_manager.level_list[i].bounds.x);
-        sj_get_float_value(sj_array_get_nth(subvalue, 0),
-                           &level_manager.level_list[i].bounds.y);
-        sj_get_float_value(sj_array_get_nth(subvalue, 0),
-                           &level_manager.level_list[i].bounds.z);
-
-        subvalue = sj_object_get_value(sublevel, "size");
-        sj_get_float_value(sj_array_get_nth(subvalue, 0),
-                           &level_manager.level_list[i].bounds.w);
-        sj_get_float_value(sj_array_get_nth(subvalue, 0),
-                           &level_manager.level_list[i].bounds.h);
-        sj_get_float_value(sj_array_get_nth(subvalue, 0),
-                           &level_manager.level_list[i].bounds.d);
       }
+
+      sublevel = sj_object_get_value(leveljson, "bounds");
+
+      subvalue = sj_object_get_value(sublevel, "dim");
+      sj_get_float_value(sj_array_get_nth(subvalue, 0),
+                         &level_manager.level_list[i].bounds.x);
+      sj_get_float_value(sj_array_get_nth(subvalue, 1),
+                         &level_manager.level_list[i].bounds.y);
+      sj_get_float_value(sj_array_get_nth(subvalue, 2),
+                         &level_manager.level_list[i].bounds.z);
+
+      subvalue = sj_object_get_value(sublevel, "size");
+      sj_get_float_value(sj_array_get_nth(subvalue, 0),
+                         &level_manager.level_list[i].bounds.w);
+      sj_get_float_value(sj_array_get_nth(subvalue, 1),
+                         &level_manager.level_list[i].bounds.h);
+      sj_get_float_value(sj_array_get_nth(subvalue, 2),
+                         &level_manager.level_list[i].bounds.d);
     }
-    uint32_t *index = (uint32_t *)malloc(sizeof(uint32_t *));
+    uint32_t *index = (uint32_t *)malloc(sizeof(uint32_t));
     *index = i;
     gfc_hashmap_insert(level_manager.level_hash,
                        level_manager.level_list[i].name, index);
   }
 
   sj_free(json);
-  slog("levels built");
+  slog("levels loaded");
+  atexit(level_clear);
   return 0;
 }
 
@@ -252,7 +256,6 @@ uint8_t level_build(const char *name) {
                               level->static_list[i].color);
     }
   }
-  atexit(level_clear);
 
   return 0;
 }
