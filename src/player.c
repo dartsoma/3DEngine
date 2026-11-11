@@ -1,3 +1,4 @@
+#include "camera_controller.h"
 #include "entity_component.h"
 #include "entity_core.h"
 #include "gfc_color.h"
@@ -53,24 +54,27 @@ Entity *player_create() {
   CollisionComponent *collision =
       (CollisionComponent *)entity_get_own_collision(player);
 
-  resource->a_data = gfc_allocate_array(sizeof(EntityResourceA), 1);
+  resource->a_data = gfc_allocate_array(sizeof(EntityResourceA), 2);
   resource->a_data[AXIS_MOVE].min = -1;
   resource->a_data[AXIS_MOVE].max = 1;
 
   resource->f_data = gfc_allocate_array(sizeof(EntityResourceF), 1);
-  resource->f_data[CAM_DISTANCE].value = 10;
+  resource->f_data[CAM_DISTANCE].value = 20;
   resource->f_data[CAM_DISTANCE].min = 0;
 
   resource->v3_data = gfc_allocate_array(sizeof(GFC_Vector3D), 2);
   gfc_vector3d_copy(resource->v3_data[CAM_OFFSET], gfc_vector3d(0, -2, 0));
-  gfc_vector3d_copy(resource->v3_data[CAM_ROTATION],
-                    gfc_vector3d(-2 * GFC_PI / 6, 0, 0));
+
+  // stores a transform to be used as its own position
+  camera_set_rotation(&resource->a_data[AXIS_CAM].axis);
+  camera_set_target(transform);
+  camera_set_distance(resource->f_data[CAM_DISTANCE].value);
 
   transform->scale = gfc_vector3d(1, 1, 1);
 
   // remember to divide by 60
-  kinematics->vel_max = 10;
-  kinematics->acc_max = 5;
+  kinematics->vel_max = 5;
+  kinematics->acc_max = 1;
 
   render->model = model_load("models/dino/dino.model");
   gfc_matrix4_identity(render->mat);
@@ -116,17 +120,17 @@ void player_think(Entity *self) {
   resource->a_data[AXIS_MOVE].axis.x = 0;
   resource->a_data[AXIS_MOVE].axis.y = 0;
 
-  if (gfc_input_command_down("panco")) {
-    resource->v3_data[CAM_ROTATION].x += 0.05;
+  if (gfc_input_key_down("UP")) {
+    resource->a_data[AXIS_CAM].axis.x -= 0.05;
   }
-  if (gfc_input_command_down("pandown")) {
-    resource->v3_data[CAM_ROTATION].x -= 0.05;
+  if (gfc_input_key_down("DOWN")) {
+    resource->a_data[AXIS_CAM].axis.x += 0.05;
   }
-  if (gfc_input_command_down("panright")) {
-    resource->v3_data[CAM_ROTATION].y -= 0.05;
+  if (gfc_input_key_down("RIGHT")) {
+    resource->a_data[AXIS_CAM].axis.y -= 0.05;
   }
-  if (gfc_input_command_down("panleft")) {
-    resource->v3_data[CAM_ROTATION].y += 0.05;
+  if (gfc_input_key_down("LEFT")) {
+    resource->a_data[AXIS_CAM].axis.y += 0.05;
   }
   if (gfc_input_command_down("item_up")) {
     move_forward(self);

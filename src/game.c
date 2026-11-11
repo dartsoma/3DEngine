@@ -20,6 +20,7 @@
 #include "gf3d_vgraphics.h"
 #include "model.h"
 
+#include "camera_controller.h"
 #include "entity_component.h"
 #include "entity_core.h"
 #include "level.h"
@@ -98,6 +99,7 @@ int main(int argc, char *argv[]) {
     lastUpdate = current;
 
     // camera updaes
+    camera_view_scene();
     gf3d_vgraphics_render_start();
     // 2D draws
 
@@ -115,6 +117,7 @@ int main(int argc, char *argv[]) {
   vkDeviceWaitIdle(gf3d_vgraphics_get_default_logical_device());
   // cleanup
   slog("gf3d program end");
+  camera_clear();
   exit(0);
   slog_sync();
   return 0;
