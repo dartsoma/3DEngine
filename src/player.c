@@ -66,15 +66,15 @@ Entity *player_create() {
   gfc_vector3d_copy(resource->v3_data[CAM_OFFSET], gfc_vector3d(0, -2, 0));
 
   // stores a transform to be used as its own position
-  camera_set_rotation(&resource->a_data[AXIS_CAM].axis);
   camera_set_target(transform);
-  camera_set_distance(resource->f_data[CAM_DISTANCE].value);
+  camera_set_distance(10.0f);
+  camera_set_angles(0.0f, 0.35f);
+  camera_set_shoulder(1.2f, 1.5f);
+
+  kinematics->vel_max = 0.15f;
+  kinematics->acc_max = 1;
 
   transform->scale = gfc_vector3d(1, 1, 1);
-
-  // remember to divide by 60
-  kinematics->vel_max = 5;
-  kinematics->acc_max = 1;
 
   render->model = model_load("models/dino/dino.model");
   gfc_matrix4_identity(render->mat);
@@ -120,18 +120,15 @@ void player_think(Entity *self) {
   resource->a_data[AXIS_MOVE].axis.x = 0;
   resource->a_data[AXIS_MOVE].axis.y = 0;
 
-  if (gfc_input_key_down("UP")) {
-    resource->a_data[AXIS_CAM].axis.x -= 0.05;
-  }
-  if (gfc_input_key_down("DOWN")) {
-    resource->a_data[AXIS_CAM].axis.x += 0.05;
-  }
-  if (gfc_input_key_down("RIGHT")) {
-    resource->a_data[AXIS_CAM].axis.y -= 0.05;
-  }
-  if (gfc_input_key_down("LEFT")) {
-    resource->a_data[AXIS_CAM].axis.y += 0.05;
-  }
+  if (gfc_input_key_down("UP"))
+    camera_rotate(0, -0.04f); // look up = camera lowers
+  if (gfc_input_key_down("DOWN"))
+    camera_rotate(0, 0.04f);
+  if (gfc_input_key_down("LEFT"))
+    camera_rotate(0.04f, 0);
+  if (gfc_input_key_down("RIGHT"))
+    camera_rotate(-0.04f, 0);
+
   if (gfc_input_command_down("item_up")) {
     move_forward(self);
   }
@@ -148,79 +145,23 @@ void player_think(Entity *self) {
   return;
 }
 
-void player_update_camera(TransformComponent *transform,
-                          ResourceComponent *resource) {
-  GFC_Matrix4 *view;
-  GFC_Vector3D offset, target, eye;
-  float dist, pitch, yaw, horiz;
-
-  offset = resource->v3_data[CAM_OFFSET];
-  pitch = resource->v3_data[CAM_ROTATION].x;
-  yaw = resource->v3_data[CAM_ROTATION].z;
-
-  dist = resource->f_data[CAM_DISTANCE].value;
-  if (dist < resource->f_data[CAM_DISTANCE].min)
-    dist = resource->f_data[CAM_DISTANCE].min;
-
-  if (pitch > 1.5f)
-    pitch = 1.5f;
-  if (pitch < 0.05f)
-    pitch = 0.05f;
-
-  target =
-      gfc_vector3d(transform->pos.x + offset.x, transform->pos.y + offset.y,
-                   transform->pos.z + offset.z);
-
-  horiz = dist * cosf(pitch);
-  eye = gfc_vector3d(target.x + sinf(yaw) * horiz, target.y - cosf(yaw) * horiz,
-                     target.z + sinf(pitch) * dist);
-
-  view = gf3d_vgraphics_get_view_matrix();
-  gfc_matrix4_view(*view, eye, target, gfc_vector3d(0, 0, 1));
-}
-
 void player_update(Entity *self) {
   if (!self)
     return;
 
-  GFC_Matrix4 *view;
-  GFC_Vector3D cam_offset, cam_rot, cam_pos;
-  float cam_distance;
+  TransformComponent *transform = entity_get_own_transform(self);
+  KinematicsComponent *kinematics = entity_get_own_kinematics(self);
+  ResourceComponent *resource = entity_get_own_resource(self);
 
-  // phys
-  TransformComponent *transform =
-      (TransformComponent *)entity_get_own_transform(self);
-  KinematicsComponent *kinematics =
-      (KinematicsComponent *)entity_get_own_kinematics(self);
-  ResourceComponent *resource =
-      (ResourceComponent *)entity_get_own_resource(self);
+  // rotate input (x = strafe right, y = forward) by camera yaw into world XY
+  float yaw = camera_get_yaw();
+  GFC_Vector2D in = resource->a_data[AXIS_MOVE].axis;
+  GFC_Vector2D world = gfc_vector2d(in.x * cosf(yaw) - in.y * sinf(yaw),
+                                    in.x * sinf(yaw) + in.y * cosf(yaw));
 
-  kinematics_accelerate(kinematics, &resource->a_data[AXIS_MOVE].axis);
-  // i just need a collision for grounded
-  // kinematics_fall(kinematics);
+  kinematics_accelerate(kinematics, &world);
   kinematics_velocity(kinematics);
-
   gfc_vector3d_add(transform->pos, kinematics->vel, transform->pos);
-
-  cam_offset = resource->v3_data[CAM_OFFSET];
-  cam_rot = resource->v3_data[CAM_ROTATION];
-
-  cam_distance = resource->f_data[CAM_DISTANCE].value;
-
-  if (cam_distance < resource->f_data[CAM_DISTANCE].min)
-    cam_distance = resource->f_data[CAM_DISTANCE].min;
-
-  view = gf3d_vgraphics_get_view_matrix();
-
-  gfc_vector3d_scale(cam_offset, cam_offset, cam_distance);
-  gfc_vector3d_rotate_about_y(&cam_offset, cam_rot.x);
-  gfc_vector3d_rotate_about_z(&cam_offset, cam_rot.z);
-  gfc_vector3d_add(cam_pos, cam_offset, transform->pos);
-
-  view = gf3d_vgraphics_get_view_matrix();
-  gfc_matrix4_view(*view, cam_pos, transform->pos, gfc_vector3d(0, 0, 1));
-
-  return;
 }
 
 void player_draw(Entity *self) {
@@ -262,7 +203,7 @@ void move_forward(Entity *self) {
   ResourceComponent *resource =
       (ResourceComponent *)entity_get_own_resource(self);
 
-  resource->a_data[AXIS_MOVE].axis.y -= 1;
+  resource->a_data[AXIS_MOVE].axis.y += 1;
 }
 
 void move_backward(Entity *self) {
@@ -272,5 +213,5 @@ void move_backward(Entity *self) {
   ResourceComponent *resource =
       (ResourceComponent *)entity_get_own_resource(self);
 
-  resource->a_data[AXIS_MOVE].axis.y += 1;
+  resource->a_data[AXIS_MOVE].axis.y -= 1;
 }

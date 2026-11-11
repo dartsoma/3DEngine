@@ -2,37 +2,26 @@
 #define __CAMERA_CONTROLLER_H__
 
 #include "entity_component.h"
-#include "gf3d_camera.h"
 #include "gfc_vector.h"
 
 typedef struct {
-
   TransformComponent *target;
-
-  float camera_lag;
-  float camera_distance;
-  float zoom;
-  GFC_Vector2D *rot;
-  GFC_Vector3D offset;
-  GFC_Vector3D abs_pos;
+  float yaw;      // radians, 0 = looking down +Y, + turns left (CCW from above)
+  float pitch;    // radians, 0 = level, + = camera above looking down
+  float distance; // units behind the aim point
+  float shoulder; // + shifts camera to the right (character appears left)
+  float height;   // aim point height above target origin
+  GFC_Vector3D abs_pos; // last computed eye position
 } CameraController;
 
-// reset vamera values
-void camera_controller_reset();
-
-void camera_look_at_target();
-
-// assumes entity checked for transform already before setting camera target
-// DO ONCE don't call every frame
+void camera_controller_reset(void);
 void camera_set_target(TransformComponent *transform);
-void camera_set_rotation(GFC_Vector2D *rotation);
-
-// stores a transform to be used as its own position
-void camera_follow_target();
-
 void camera_set_distance(float distance);
+void camera_set_angles(float yaw, float pitch);
+void camera_set_shoulder(float side, float height);
+void camera_rotate(float dyaw, float dpitch);
+float camera_get_yaw(void);
+void camera_view_scene(void);
+void camera_clear(void);
 
-void camera_view_scene();
-
-void camera_clear();
 #endif

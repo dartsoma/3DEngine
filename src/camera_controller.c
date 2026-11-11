@@ -1,71 +1,77 @@
 #include "camera_controller.h"
+#include "gf3d_vgraphics.h"
 #include "gfc_matrix.h"
 #include "gfc_vector.h"
-#include "simple_logger.h"
-#include <stddef.h>
-#include <wchar.h>
+#include <math.h>
 
-CameraController camera_controller = {0};
+#define CAM_PITCH_MIN 0.15f
+#define CAM_PITCH_MAX 1.40f
 
-void camera_controller_reset() {
+static const CameraController camera_defaults = {
+    .target = NULL,
+    .yaw = 0.0f,
+    .pitch = 0.35f,
+    .distance = -10.0f,
+    .shoulder = 1.2f,
+    .height = 1.5f,
+};
 
-  memset(&camera_controller, 0, sizeof(camera_controller));
-}
+CameraController camera_controller = {
+    .pitch = 0.35f, .distance = 10.0f, .shoulder = 1.2f, .height = 1.5f};
 
-void camera_view_scene() {
-
-  GFC_Matrix4 *view = gf3d_vgraphics_get_view_matrix();
-  GFC_Vector3D camera_pos, target_pos;
-
-  if (!camera_controller.target || !camera_controller.rot) {
-    camera_pos = camera_controller.abs_pos;
-    gfc_matrix4_view(*view, camera_pos, gfc_vector3d(0, 0, 0),
-                     gfc_vector3d(0, 0, 1));
-
-    return;
-  }
-
-  camera_pos = gfc_vector3d(0, -10, 0);
-  target_pos = camera_controller.target->pos;
-
-  float yaw = camera_controller.rot->x;
-  float pitch = camera_controller.rot->y;
-
-  camera_controller.rot->x;
-  camera_controller.rot->y;
-
-  gfc_vector3d_scale(camera_pos, camera_pos, camera_controller.camera_distance);
-  gfc_vector3d_rotate_about_x(&camera_pos, pitch);
-  gfc_vector3d_rotate_about_z(&camera_pos, yaw);
-  gfc_vector3d_add(camera_pos, camera_pos, target_pos);
-
-  gfc_matrix4_view(*view, camera_pos, target_pos, gfc_vector3d(0, 0, 1));
-  camera_controller.abs_pos = camera_pos;
-}
+void camera_controller_reset(void) { camera_controller = camera_defaults; }
+void camera_clear(void) { camera_controller_reset(); }
 
 void camera_set_target(TransformComponent *transform) {
-
-  if (!transform) {
-    camera_controller.target = NULL;
-  }
-
-  camera_controller.target = transform;
-}
-
-void camera_set_rotation(GFC_Vector2D *rotation) {
-
-  if (!rotation) {
-    return;
-  }
-
-  camera_controller.rot = rotation;
+  camera_controller.target =
+      transform; // NULL is fine, camera falls back to origin
 }
 
 void camera_set_distance(float distance) {
-
-  camera_controller.camera_distance = distance;
+  camera_controller.distance = distance < 1.0f ? 1.0f : distance;
 }
 
-void camera_clear() {
-  memset(&camera_controller, 0, sizeof(camera_controller));
+static float clampf(float v, float lo, float hi) {
+  return v < lo ? lo : (v > hi ? hi : v);
+}
+
+void camera_set_angles(float yaw, float pitch) {
+  camera_controller.yaw = yaw;
+  camera_controller.pitch = clampf(pitch, CAM_PITCH_MIN, CAM_PITCH_MAX);
+}
+
+void camera_set_shoulder(float side, float height) {
+  camera_controller.shoulder = side;
+  camera_controller.height = height;
+}
+
+void camera_rotate(float dyaw, float dpitch) {
+  camera_controller.yaw =
+      fmodf(camera_controller.yaw + dyaw, 2.0f * (float)M_PI);
+  camera_controller.pitch =
+      clampf(camera_controller.pitch + dpitch, CAM_PITCH_MIN, CAM_PITCH_MAX);
+}
+
+float camera_get_yaw(void) { return camera_controller.yaw; }
+
+void camera_view_scene(void) {
+  CameraController *c = &camera_controller;
+  GFC_Matrix4 *view = gf3d_vgraphics_get_view_matrix();
+
+  float sy = sinf(c->yaw), cy = cosf(c->yaw);
+  float sp = sinf(c->pitch), cp = cosf(c->pitch);
+
+  GFC_Vector3D focus = c->target ? c->target->pos : gfc_vector3d(0, 0, 0);
+
+  focus.x += cy * c->shoulder;
+  focus.y += sy * c->shoulder;
+  focus.z += c->height;
+
+  // forward (horizontal) = (-sin yaw, cos yaw, 0); eye sits behind and above
+  GFC_Vector3D eye =
+      gfc_vector3d(focus.x + c->distance * cp * sy,
+                   focus.y - c->distance * cp * cy, focus.z + c->distance * sp);
+
+  c->abs_pos = eye;
+  gfc_matrix4_view(*view, eye, focus, gfc_vector3d(0, 0, 1));
 }
