@@ -46,9 +46,7 @@ int main(int argc, char *argv[]) {
   Entity *player;
   Sprite *bg;
 
-  Model *ground;
-  GFC_Matrix4 *view, mat;
-  GFC_Vector3D offset = {0, 10, 0};
+
   // initializtion
   parse_arguments(argc, argv);
   init_logger("gf3d.log", 0);
@@ -68,12 +66,9 @@ int main(int argc, char *argv[]) {
   slog_sync();
   bg = gf2d_sprite_load_image("images/bg_flat.png");
   gf2d_mouse_load("actors/mouse.actor");
-  // view = gf3d_vgraphics_get_view_matrix();
-  entity_manager_init(1000);
 
+  entity_manager_init(1000);
   level_setup();
-  gfc_matrix4_identity(mat);
-  ground = model_load("models/map/ground.model");
   player = player_create();
 
   // main game loop
@@ -102,17 +97,13 @@ int main(int argc, char *argv[]) {
     lastUpdate = current;
 
     // camera updaes
-    gf3d_vgraphics_render_start();
-    // gfc_matrix4_view(*view, offset, gfc_vector3d(0, 0, 0),
-    //                  gfc_vector3d(0, 0, 1));
-    //
-    //  gfc_matrix4_from_vectors(mat, gfc_vector3d(0, 0, -10),
-    //                          gfc_vector3d(0, 0, 0), gfc_vector3d(1, 1, 1));
-    //
-    gf3d_model_queue_render(ground, mat, GFC_COLOR_WHITE);
-    entity_manager_draw();
 
-    // level_build("base");
+    camera_view_scene();
+    gf3d_vgraphics_render_start();
+
+    entity_manager_draw();
+    level_build("base");
+
     gf2d_font_draw_line_tag("ALT+F4 to exit", FT_H1, GFC_COLOR_WHITE,
                             gfc_vector2d(10, 10));
     gf2d_mouse_draw();

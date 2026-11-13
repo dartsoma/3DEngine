@@ -12,6 +12,7 @@
 #include "simple_logger.h"
 #include <stdint.h>
 #include <stdio.h>
+#include "gfc_primitives.h"
 #include <stdlib.h>
 
 typedef struct {
@@ -438,7 +439,7 @@ void kinematics_accelerate(KinematicsComponent *kinematics) {
 
   // kinematics_fall(kinematics);
   kinematics->acc.x = kinematics->direction.x * kinematics->acc_max;
-  kinematics->acc.x = kinematics->direction.y * kinematics->acc_max;
+  kinematics->acc.y = kinematics->direction.y * kinematics->acc_max;
 }
 
 void kinematics_fall(KinematicsComponent *kinematics) {
@@ -882,12 +883,15 @@ uint8_t collision_capsule_capsule(CapsuleObject *capsule1, Transform transform1,
                                   CollisionInfo *info) {
   return 0;
 }
-// most important
+
 uint8_t collision_capsule_complex(CapsuleObject *capsule, Transform transform1,
                                   Model *model, Transform transform2,
                                   CollisionInfo *info) {
   return 0;
 }
+
+
+
 
 void collision_project_triangle(GFC_Vector3D a, GFC_Vector3D b, GFC_Vector3D c,
                                 GFC_Vector3D axis, float *min, float *max) {

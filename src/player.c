@@ -67,11 +67,14 @@ Entity *player_create() {
   resource->f_data[FLOAT_CAMERADISTANCE].value = 30;
 
   transform->scale = gfc_vector3d(1, 1, 1);
-  transform->pos = gfc_vector3d(0, 0, 0);
+  transform->pos = gfc_vector3d(1, 1, 1);
   kinematics->vel_max = 6;
   kinematics->acc_max = 1;
 
   render->model = model_load("models/dino/dino.model");
+
+
+
 
   if (!render->model)
 
@@ -158,8 +161,8 @@ void player_think(Entity *self) {
   float strafe = resource->a_data[AXIS_MOVE].axis.y;
 
   kinematics->direction.x = forward * sinf(yaw) + strafe * cosf(yaw);
-
   kinematics->direction.y = -forward * cosf(yaw) + strafe * sinf(yaw);
+
 }
 
 void player_update(Entity *self) {
@@ -178,17 +181,16 @@ void player_update(Entity *self) {
   kinematics_velocity(kinematics);
   gfc_vector3d_add(transform->pos, kinematics->vel, transform->pos);
 
-  camera_view_scene();
   // slog("Direction: %f, %f", kinematics->direction.x,
   // kinematics->direction.y);
 
   // slog("Velocity: %f, %f", kinematics->vel.x, kinematics->vel.y);
 
-  // slog("Position: %f, %f, %f", transform->pos.x, transform->pos.y,
-  //    transform->pos.z);
+  slog("Position: %f, %f, %f", transform->pos.x, transform->pos.y,
+       transform->pos.z);
   //
-  slog("camera->rot: %f, %f", resource->a_data[AXIS_CAMERA].axis.x,
-       resource->a_data[AXIS_CAMERA].axis.y);
+  // slog("camera->rot: %f, %f", resource->a_data[AXIS_CAMERA].axis.x,
+  // resource->a_data[AXIS_CAMERA].axis.y);
   return;
 }
 
