@@ -1,0 +1,7 @@
+{
+    "model":
+    {
+        "obj":"models/map/ground.obj",
+        "texture":"models/map/ground.png"
+    }
+}

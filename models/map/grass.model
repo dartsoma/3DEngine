@@ -1,0 +1,7 @@
+{
+    "model":
+    {
+        "obj":"models/map/grass.obj",
+        "texture":"models/map/grass.png"
+    }
+}
