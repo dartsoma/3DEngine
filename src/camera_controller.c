@@ -25,8 +25,8 @@ void camera_view_scene() {
   target_pos = camera_controller.target->pos;
 
   gfc_vector3d_scale(camera_pos, camera_pos, camera_controller.camera_distance);
-  gfc_vector3d_rotate_about_x(&camera_pos, camera_controller.rot->y);
   gfc_vector3d_rotate_about_z(&camera_pos, camera_controller.rot->x);
+  gfc_vector3d_rotate_about_x(&camera_pos, camera_controller.rot->y);
 
   gfc_vector3d_add(camera_pos, camera_pos, target_pos);
 
