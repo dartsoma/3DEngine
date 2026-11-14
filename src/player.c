@@ -73,9 +73,6 @@ Entity *player_create() {
 
   render->model = model_load("models/dino/dino.model");
 
-
-
-
   if (!render->model)
 
     slog("no model");
@@ -107,11 +104,30 @@ void player_free(Entity *self) {
     return;
 
   RenderComponent *render = (RenderComponent *)entity_get_own_render(self);
+  TransformComponent *transform =
+      (TransformComponent *)entity_get_own_transform(self);
+  KinematicsComponent *kinematics =
+      (KinematicsComponent *)entity_get_own_kinematics(self);
   ResourceComponent *resource =
       (ResourceComponent *)entity_get_own_resource(self);
+  CollisionComponent *collision =
+      (CollisionComponent *)entity_get_own_collision(self);
 
-  free(resource->f_data);
+  if (resource->f_data)
+    free(resource->f_data);
+  if (resource->i_data)
+    free(resource->i_data);
+  if (resource->a_data)
+    free(resource->a_data);
+  if (resource->v3_data)
+    free(resource->v3_data);
+
   model_free(render->model);
+
+  memset(render, 0, sizeof(*render));
+  memset(transform, 0, sizeof(*transform));
+  memset(kinematics, 0, sizeof(*kinematics));
+  memset(collision, 0, sizeof(*collision));
 
   slog("Player Freed!");
   return;
@@ -162,7 +178,6 @@ void player_think(Entity *self) {
 
   kinematics->direction.x = forward * sinf(yaw) + strafe * cosf(yaw);
   kinematics->direction.y = -forward * cosf(yaw) + strafe * sinf(yaw);
-
 }
 
 void player_update(Entity *self) {

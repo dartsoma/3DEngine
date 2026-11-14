@@ -12,7 +12,6 @@
 #include "simple_logger.h"
 #include <stdint.h>
 #include <stdio.h>
-#include "gfc_primitives.h"
 #include <stdlib.h>
 
 typedef struct {
@@ -239,8 +238,6 @@ void entity_remove_component(uint32_t index, EntityComponentType type) {
       free(entity_manager.resource_list[index].a_data);
     if (entity_manager.resource_list[index].v3_data)
       free(entity_manager.resource_list[index].v3_data);
-    if (entity_manager.resource_list[index].v2_data)
-      free(entity_manager.resource_list[index].v2_data);
     memset(&entity_manager.resource_list[index], 0,
            sizeof(entity_manager.resource_list[index]));
     break;
@@ -889,9 +886,6 @@ uint8_t collision_capsule_complex(CapsuleObject *capsule, Transform transform1,
                                   CollisionInfo *info) {
   return 0;
 }
-
-
-
 
 void collision_project_triangle(GFC_Vector3D a, GFC_Vector3D b, GFC_Vector3D c,
                                 GFC_Vector3D axis, float *min, float *max) {

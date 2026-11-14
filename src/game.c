@@ -46,7 +46,6 @@ int main(int argc, char *argv[]) {
   Entity *player;
   Sprite *bg;
 
-
   // initializtion
   parse_arguments(argc, argv);
   init_logger("gf3d.log", 0);
