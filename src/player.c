@@ -19,11 +19,33 @@
 #define AXIS_CAMERA 2
 
 #define FLOAT_CAMERADISTANCE 0
+#define FLOAT_ABILITY_1_TIMER 1
+#define FLOAT_ABILITY_2_TIMER 2
+#define FLOAT_ABILITY_3_TIMER 3
+#define FLOAT_ABILITY_4_TIMER 4
+#define FLOAT_ABILITY_5_TIMER 5
+
+#define INT_PLAYERFLAGS 0
+
+#define FLAG_GROUNDED 1
+#define FLAG_FASTFALL 2
+
+#define INT_UNLOCKFLAGS 0
+#define FLAG_ABILITY1 1
+#define FLAG_ABILITY2 2
+#define FLAG_ABILITY3 4
+#define FLAG_ABILITY4 8
+#define FLAG_ABILITY5 16
 
 void move_left(Entity *self);
 void move_right(Entity *self);
 void move_forward(Entity *self);
 void move_backward(Entity *self);
+void setup_resource(ResourceComponent *resource);
+void setup_render(ResourceComponent *resource);
+void setup_collision(ResourceComponent *resource);
+void setup_kinematics(ResourceComponent *resource);
+void setup_collision(ResourceComponent *resource);
 
 Entity *player_create() {
   Entity *player;
@@ -51,23 +73,16 @@ Entity *player_create() {
   CollisionComponent *collision =
       (CollisionComponent *)entity_get_own_collision(player);
 
-  resource->a_data = gfc_allocate_array(sizeof(EntityResourceA), 3);
+  if (!render || !transform || !kinematics || !resource || !collision) {
+    slog("player components failed to initialize");
+    return NULL;
+  }
 
-  resource->a_data[AXIS_MOVE].min = -1;
-  resource->a_data[AXIS_MOVE].max = 1;
-
-  resource->a_data[AXIS_PREVMOVE].min = -1;
-  resource->a_data[AXIS_PREVMOVE].max = 1;
-
-  resource->a_data[AXIS_CAMERA].axis.x = 0;
-  resource->a_data[AXIS_CAMERA].axis.y = (GFC_PI / 6);
-
-  resource->f_data = gfc_allocate_array(sizeof(EntityResourceF), 1);
-
-  resource->f_data[FLOAT_CAMERADISTANCE].value = 30;
+  setup_resource(resource);
 
   transform->scale = gfc_vector3d(1, 1, 1);
   transform->pos = gfc_vector3d(1, 1, 1);
+
   kinematics->vel_max = 6;
   kinematics->acc_max = 1;
 
@@ -96,6 +111,43 @@ Entity *player_create() {
 
   slog("Player Spawned!");
   return player;
+}
+
+void setup_resource(ResourceComponent *resource) {
+
+  resource->a_data = gfc_allocate_array(sizeof(EntityResourceA), 3);
+  resource->a_data[AXIS_MOVE].min = -1;
+  resource->a_data[AXIS_MOVE].max = 1;
+  resource->a_data[AXIS_PREVMOVE].min = -1;
+  resource->a_data[AXIS_PREVMOVE].max = 1;
+  resource->a_data[AXIS_CAMERA].axis.x = 0;
+  resource->a_data[AXIS_CAMERA].axis.y = (GFC_PI / 6);
+
+  resource->f_data = gfc_allocate_array(sizeof(EntityResourceF), 6);
+  resource->f_data[FLOAT_CAMERADISTANCE].value = 30;
+
+  // setup timers
+  resource->f_data[FLOAT_ABILITY_1_TIMER].max = 1;
+  resource->f_data[FLOAT_ABILITY_2_TIMER].max = 1;
+  resource->f_data[FLOAT_ABILITY_3_TIMER].max = 1;
+  resource->f_data[FLOAT_ABILITY_4_TIMER].max = 1;
+  resource->f_data[FLOAT_ABILITY_5_TIMER].max = 1;
+
+  resource->f_data[FLOAT_ABILITY_1_TIMER].min = 0;
+  resource->f_data[FLOAT_ABILITY_2_TIMER].min = 0;
+  resource->f_data[FLOAT_ABILITY_3_TIMER].min = 0;
+  resource->f_data[FLOAT_ABILITY_4_TIMER].min = 0;
+  resource->f_data[FLOAT_ABILITY_5_TIMER].min = 0;
+
+  resource->f_data[FLOAT_ABILITY_1_TIMER].value = 1;
+  resource->f_data[FLOAT_ABILITY_2_TIMER].value = 1;
+  resource->f_data[FLOAT_ABILITY_3_TIMER].value = 1;
+  resource->f_data[FLOAT_ABILITY_4_TIMER].value = 1;
+  resource->f_data[FLOAT_ABILITY_5_TIMER].value = 1;
+
+  resource->i_data = gfc_allocate_array(sizeof(EntityResourceI), 2);
+  resource->i_data[INT_PLAYERFLAGS].value = 0;
+  resource->i_data[INT_UNLOCKFLAGS].value = 0;
 }
 
 void player_free(Entity *self) {
@@ -201,11 +253,11 @@ void player_update(Entity *self) {
 
   // slog("Velocity: %f, %f", kinematics->vel.x, kinematics->vel.y);
 
-  slog("Position: %f, %f, %f", transform->pos.x, transform->pos.y,
-       transform->pos.z);
-  //
-  // slog("camera->rot: %f, %f", resource->a_data[AXIS_CAMERA].axis.x,
-  // resource->a_data[AXIS_CAMERA].axis.y);
+  //  slog("Player Update");
+  //  slog("Position: %f, %f, %f", transform->pos.x, transform->pos.y,
+  //      transform->pos.z);
+  //// slog("camera->rot: %f, %f", resource->a_data[AXIS_CAMERA].axis.x,
+  //  resource->a_data[AXIS_CAMERA].axis.y);
   return;
 }
 
@@ -223,6 +275,76 @@ void player_draw(Entity *self) {
   return;
 }
 
+void dive(Entity *self) {
+  if (!self)
+    return;
+  KinematicsComponent *kinematics =
+      (KinematicsComponent *)entity_get_own_kinematics(self);
+  ResourceComponent *resource = entity_get_own_resource(self);
+  if ((resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 0) {
+    resource->i_data[INT_PLAYERFLAGS].value |= FLAG_FASTFALL;
+    kinematics->gravity = -18.2;
+  }
+}
+
+void jump(Entity *self) {
+  if (!self)
+    return;
+  KinematicsComponent *kinematics =
+      (KinematicsComponent *)entity_get_own_kinematics(self);
+  ResourceComponent *resource = entity_get_own_resource(self);
+  if ((resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 1) {
+    kinematics->vel.z = 18;
+  } else
+    // air njump
+    if ((resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 1 &&
+        (player_ability_check(self, FLAG_ABILITY1)) != 0) {
+      kinematics->vel.z = 18;
+    }
+}
+
+void slide(Entity *self) {
+
+  KinematicsComponent *kinematics =
+      (KinematicsComponent *)entity_get_own_kinematics(self);
+  ResourceComponent *resource = entity_get_own_resource(self);
+  if (kinematics->acc.z < 0 &&
+      (resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 0) {
+    kinematics->boost = 4;
+  }
+}
+
+void brake(Entity *self) {
+
+  KinematicsComponent *kinematics =
+      (KinematicsComponent *)entity_get_own_kinematics(self);
+  ResourceComponent *resource = entity_get_own_resource(self);
+  if (kinematics->acc.z < 0 &&
+      (resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 0) {
+  }
+}
+
+Uint8 player_ability_check(Entity *self, int flag) {
+  if (!self)
+    return 0;
+
+  ResourceComponent *resource = entity_get_own_resource(self);
+  if ((resource->i_data[INT_UNLOCKFLAGS].value & flag) != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+void toggle_ability_flag(Entity *self, int flag) {
+
+  if (!self)
+    return;
+  ResourceComponent *resource = entity_get_own_resource(self);
+
+  resource->i_data[INT_UNLOCKFLAGS].value ^= (1U << flag);
+}
+
+/*
 void move_left(Entity *self) {
   if (!self)
     return;
@@ -260,3 +382,4 @@ void move_backward(Entity *self) {
 
   resource->a_data[AXIS_MOVE].axis.y += 1;
 }
+*/

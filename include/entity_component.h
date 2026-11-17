@@ -32,10 +32,11 @@ typedef struct {
   uint8_t _inuse;
   GFC_Vector3D vel;
   GFC_Vector3D acc;
+  float boost;
   float vel_max;
   float acc_max;
   GFC_Vector2D direction;
-  GFC_Vector3D gravity;
+  float gravity;
 
 } KinematicsComponent;
 
@@ -61,9 +62,9 @@ typedef struct {
 
 typedef struct {
 
-  float max;
-  float min;
-  float value;
+  int max;
+  int min;
+  int value;
 
 } EntityResourceI;
 

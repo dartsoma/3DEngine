@@ -1,7 +1,6 @@
 #include "model.h"
 #include "gfc_text.h"
 #include "simple_logger.h"
-#include "gfc_text.h"
 
 typedef struct {
   Model *modelList;
@@ -227,6 +226,7 @@ ModelUBO model_get_ubo(GFC_Matrix4 modelMat, GFC_Color colormod) {
 
   gfc_matrix4_copy(ubo.model, modelMat);
   gf3d_vgraphics_get_view(&ubo.view);
+
   gf3d_vgraphics_get_projection_matrix(&ubo.proj);
   ubo.color = gfc_color_to_vector4f(colormod);
   /*

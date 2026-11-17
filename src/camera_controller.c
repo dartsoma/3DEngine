@@ -21,17 +21,23 @@ void camera_view_scene() {
     return;
   }
 
-  camera_pos = gfc_vector3d(0, -1, 0);
+  camera_pos = gfc_vector3d(0, 1, 0);
+
   target_pos = camera_controller.target->pos;
 
   gfc_vector3d_scale(camera_pos, camera_pos, camera_controller.camera_distance);
-  gfc_vector3d_rotate_about_z(&camera_pos, camera_controller.rot->x);
   gfc_vector3d_rotate_about_x(&camera_pos, camera_controller.rot->y);
+  gfc_vector3d_rotate_about_z(&camera_pos, camera_controller.rot->x);
 
   gfc_vector3d_add(camera_pos, camera_pos, target_pos);
 
   gfc_matrix4_view(*view, camera_pos, target_pos, gfc_vector3d(0, 0, 1));
 
+  //  slog("Camera System");
+  //  slog("camera position: %f %f %f", camera_pos.x, camera_pos.y,
+  //  camera_pos.z); slog("target position: %f %f %f ", target_pos.x,
+  //  target_pos.y, target_pos.z); slog("camera rotation: %f %f ",
+  //  camera_controller.rot->x, camera_controller.rot->y);
 }
 
 void camera_set_target(TransformComponent *transform) {

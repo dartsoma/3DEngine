@@ -18,8 +18,8 @@
 
 typedef struct {
 
+      GFC_Matrix4 model;
   GFC_Matrix4 view;
-  GFC_Matrix4 model;
   GFC_Matrix4 proj;
   GFC_Vector4D color;
 } ModelUBO;

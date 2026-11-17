@@ -13,4 +13,6 @@ void player_update(Entity *self);
 
 void player_draw(Entity *self);
 
+Uint8 player_ability_check(Entity *self, int flag);
+
 #endif

@@ -471,10 +471,20 @@ void kinematics_velocity(KinematicsComponent *kinematics) {
   gfc_vector3d_add(kinematics->vel, acceleration, kinematics->vel);
 
   float magnitude;
-  magnitude = gfc_vector3d_magnitude(kinematics->vel);
-  if (magnitude > kinematics->vel_max) {
-    kinematics->vel.x = kinematics->vel.x * (kinematics->vel_max / magnitude);
-    kinematics->vel.y = kinematics->vel.y * (kinematics->vel_max / magnitude);
+  magnitude = gfc_vector2d_magnitude(
+      gfc_vector2d(kinematics->vel.x, kinematics->vel.y));
+
+  if (magnitude >
+      kinematics->vel_max + kinematics->vel_max + kinematics->boost) {
+    kinematics->vel.x = kinematics->vel.x *
+                        (kinematics->vel_max + kinematics->boost / magnitude);
+    kinematics->vel.y = kinematics->vel.y *
+                        (kinematics->vel_max + kinematics->boost / magnitude);
+  }
+  if (kinematics->boost > 0) {
+    kinematics->boost /= 2;
+    if (kinematics->boost < GFC_EPSILON)
+      kinematics->boost = 0;
   }
 }
 

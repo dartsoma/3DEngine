@@ -93,7 +93,7 @@ void prop_spawn_at(uint8_t tag, Transform *transform) {
 
   Entity *prop = prop_create(tag);
 
-  TransformComponent *oldtransform = entity_get_own_transform(enemy);
+  TransformComponent *oldtransform = entity_get_own_transform(prop);
 
   oldtransform->pos = *transform->pos;
 }
