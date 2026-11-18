@@ -38,6 +38,8 @@ void camera_view_scene() {
   //  camera_pos.z); slog("target position: %f %f %f ", target_pos.x,
   //  target_pos.y, target_pos.z); slog("camera rotation: %f %f ",
   //  camera_controller.rot->x, camera_controller.rot->y);
+
+
 }
 
 void camera_set_target(TransformComponent *transform) {

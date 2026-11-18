@@ -7,12 +7,11 @@
               "name": "grass",
               "collisiontype": 1,
               "collisionmask": 0,
-              "position":[0,-10,0],
+              "position":[0,0,-50],
               "rotation":[0,0,0],
-              "scale": [1,1,1],
+              "scale": [5,5,5],
               "model": "models/map/grass.model"
             }],
-
             "entities":[{
               "type": 1,
               "position":[0,0,0],

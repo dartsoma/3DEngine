@@ -16,63 +16,64 @@ typedef struct ObjData_S ObjData;
 
 // absolute basics of the mesh information sent to the graphics card
 typedef struct {
-  GFC_Matrix4 model;
-  GFC_Matrix4 view;
-  GFC_Matrix4 proj;
-  GFC_Vector4D color;
-  GFC_Vector4D camera;
+    GFC_Matrix4 model;
+    GFC_Matrix4 view;
+    GFC_Matrix4 proj;
+    GFC_Vector4D color;
+    GFC_Vector4D camera;
 } MeshUBO;
 
 typedef struct {
-  GFC_Vector3D vertex;
-  GFC_Vector3D normal;
-  GFC_Vector2D texel;
+    GFC_Vector3D vertex;
+    GFC_Vector3D normal;
+    GFC_Vector2D texel;
 } Vertex;
 
 typedef struct {
-  Uint32 verts[3];
+    Uint32 verts[3];
 } Face;
 
 typedef struct {
-  Uint32 vertexCount;
-  VkBuffer vertexBuffer;
-  VkDeviceMemory vertexBufferMemory;
-  Uint32 faceCount;
-  VkBuffer faceBuffer;
-  VkDeviceMemory faceBufferMemory;
-  ObjData *objData;
+    Uint32 vertexCount;
+    VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
+    Uint32 faceCount;
+    VkBuffer faceBuffer;
+    VkDeviceMemory faceBufferMemory;
+    ObjData* objData;
 } MeshPrimitive;
 
 typedef struct {
-  GFC_TextLine filename;
-  Uint32 _refCount;
-  GFC_List *primitives;
-  GFC_Box bounds;
+    GFC_TextLine filename;
+    Uint32 _refCount;
+    GFC_List* primitives;
+    GFC_Box bounds;
 } Mesh;
 
 void gf3d_mesh_init(Uint32 mesh_max);
 
 void gf3d_mesh_close();
 
-Mesh *gf3d_mesh_new();
+Mesh* gf3d_mesh_new();
 
 // rids of a reference
-void gf3d_mesh_free(Mesh *mesh);
+void gf3d_mesh_free(Mesh* mesh);
 
-void gf3d_mesh_delete(Mesh *mesh);
+void gf3d_mesh_delete(Mesh* mesh);
 
-MeshPrimitive *gf3d_mesh_primitive_new();
+MeshPrimitive* gf3d_mesh_primitive_new();
 
-void gf3d_mesh_primitive_free(MeshPrimitive *prim);
+void gf3d_mesh_primitive_free(MeshPrimitive* prim);
 
-Uint8 gf3d_primitive_buffer_create(MeshPrimitive *prim);
+Uint8 gf3d_primitive_buffer_create(MeshPrimitive* prim);
 
-Mesh *gf3d_mesh_load_obj(const char *filename);
+Mesh* gf3d_mesh_load_obj(const char* filename);
 
-VkVertexInputAttributeDescription *gf3d_mesh_get_attribute_descriptions();
-VkVertexInputBindingDescription *gf3d_mesh_get_bind_description();
+VkVertexInputAttributeDescription* gf3d_mesh_get_attribute_descriptions();
+VkVertexInputBindingDescription* gf3d_mesh_get_bind_description();
 
-void gf3d_mesh_queue_render(Mesh *mesh, Pipeline *pipe, void *uboData,
-                            Texture *texture);
+void gf3d_mesh_queue_render(Mesh* mesh, Pipeline* pipe, void* uboData, Texture* texture);
+
+GFC_Box construct_bounds(GFC_Vector3D* vertices, uint32_t vertex_count);
 
 #endif

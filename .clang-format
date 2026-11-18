@@ -1,0 +1,52 @@
+# RockSat C/C++ formatting
+# Place at the repository root. Applies to firmware, shared libraries,
+# simulation, and visualization code.
+# Compatible with modern clang-format releases (16+).
+
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: Auto
+
+# Indentation and line length
+IndentWidth: 4
+ContinuationIndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+IndentCaseLabels: true
+IndentAccessModifiers: false
+AccessModifierOffset: -4
+NamespaceIndentation: None
+
+# Braces and whitespace
+BreakBeforeBraces: Attach
+SpaceBeforeParens: ControlStatements
+SpaceBeforeCpp11BracedList: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+
+# Functions, calls, and initializers
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+BinPackArguments: false
+BinPackParameters: false
+ConstructorInitializerIndentWidth: 4
+BreakConstructorInitializers: BeforeColon
+
+# Keep existing embedded/framework include order. Some libraries require it.
+SortIncludes: Never
+IncludeBlocks: Preserve
+
+# Keep diffs readable
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignEscapedNewlines: Left
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+FixNamespaceComments: true
+ReflowComments: true
