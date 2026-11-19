@@ -68,4 +68,6 @@ GFC_Box level_get_bounds();
 
 void level_select(const char* name);
 
+void level_clamp_bounds(GFC_Vector3D* vec);
+
 #endif

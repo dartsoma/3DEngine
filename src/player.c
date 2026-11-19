@@ -8,7 +8,7 @@
 #include "gfc_vector.h"
 #include "model.h"
 #include "simple_logger.h"
-
+#include "level.h"
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -27,11 +27,14 @@
 #define FLOAT_ABILITY_5_TIMER 5
 
 #define INT_PLAYERFLAGS 0
-
 #define FLAG_GROUNDED 1
 #define FLAG_FASTFALL 2
+#define FLAG_SLIDING 4
+#define FLAG_JUMP_DEBOUNCE 8
+#define FLAG_DOUBLEJUMP_DEBOUNCE 16
+#define FLAG_BRAKING 32
 
-#define INT_UNLOCKFLAGS 0
+#define INT_UNLOCKFLAGS 1
 #define FLAG_ABILITY1 1
 #define FLAG_ABILITY2 2
 #define FLAG_ABILITY3 4
@@ -93,6 +96,7 @@ Entity* player_create() {
     camera_set_distance(resource->f_data[FLOAT_CAMERADISTANCE].value);
 
     slog("Player Spawned!");
+    entity_set_player_reference(player);
     return player;
 }
 
@@ -260,6 +264,7 @@ void player_update(Entity* self) {
     kinematics_velocity(kinematics);
     gfc_vector3d_add(transform->pos, kinematics->vel, transform->pos);
 
+    level_clamp_bounds(&transform->pos);
     // slog("Direction: %f, %f", kinematics->direction.x,
     // kinematics->direction.y);
 
@@ -292,7 +297,6 @@ void dive(Entity* self) {
     ResourceComponent* resource = entity_get_own_resource(self);
     if ((resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 0) {
         resource->i_data[INT_PLAYERFLAGS].value |= FLAG_FASTFALL;
-        kinematics->gravity = -18.2;
     }
 }
 
@@ -315,7 +319,9 @@ void slide(Entity* self) {
     KinematicsComponent* kinematics = (KinematicsComponent*)entity_get_own_kinematics(self);
     ResourceComponent* resource = entity_get_own_resource(self);
     if (kinematics->acc.z < 0 && (resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 0) {
-        kinematics->boost = 4;
+        if (kinematics->boost <= 0) {
+            kinematics->boost = 4;
+        }
     }
 }
 
@@ -342,7 +348,7 @@ void toggle_ability_flag(Entity* self, int flag) {
         return;
     ResourceComponent* resource = entity_get_own_resource(self);
 
-    resource->i_data[INT_UNLOCKFLAGS].value ^= (1U << flag);
+    resource->i_data[INT_UNLOCKFLAGS].value ^= flag;
 }
 
 /*

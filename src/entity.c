@@ -14,8 +14,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MOVEMENT_FLOOR_ANGLE 0.5f // in acos() would be 60 deg
-#define COLLISION_MAX_PUSH 1.0f   // no faster rise than this
+#define MOVEMENT_FLOOR_ANGLE 0.5f      // in acos() would be 60 deg
+#define MOVEMENT_REVERSE_ACC_MULT 3.0f // extra push when fighting current momentum
+#define MOVEMENT_TURN_GRIP 0.35f       // 0 frictionless, 1 snap
+#define COLLISION_MAX_PUSH 1.0f        // no faster rise than this
 
 typedef struct {
     Entity* entity_list;
@@ -25,6 +27,8 @@ typedef struct {
 
     uint32_t next_id;
     uint32_t entity_max;
+
+    Entity* player_reference;
 
     TransformComponent* transform_list;
 
@@ -423,8 +427,33 @@ void kinematics_accelerate(KinematicsComponent* kinematics) {
         return;
 
     kinematics_fall(kinematics);
-    kinematics->acc.x = kinematics->direction.x * kinematics->acc_max;
-    kinematics->acc.y = kinematics->direction.y * kinematics->acc_max;
+
+    float dx = kinematics->direction.x;
+    float dy = kinematics->direction.y;
+    float dlen = sqrtf(dx * dx + dy * dy);
+
+    if (dlen > GFC_EPSILON) {
+        dx /= dlen;
+        dy /= dlen;
+
+        float along = kinematics->vel.x * dx + kinematics->vel.y * dy;
+        float perpX = kinematics->vel.x - dx * along;
+        float perpY = kinematics->vel.y - dy * along;
+
+        kinematics->vel.x -= perpX * MOVEMENT_TURN_GRIP;
+        kinematics->vel.y -= perpY * MOVEMENT_TURN_GRIP;
+
+        // faster break
+        float accel = kinematics->acc_max;
+        if (along < 0)
+            accel *= MOVEMENT_REVERSE_ACC_MULT;
+
+        kinematics->acc.x = dx * accel;
+        kinematics->acc.y = dy * accel;
+    } else {
+        kinematics->acc.x = 0;
+        kinematics->acc.y = 0;
+    }
 }
 
 void kinematics_fall(KinematicsComponent* kinematics) {
@@ -573,7 +602,6 @@ void* entity_transform_get(Entity* self, Transform* transform) {
 
     return transform;
 }
-static int dbg = 0;
 
 void entity_world_collision(Entity* self) {
     if (!self)
@@ -1512,4 +1540,18 @@ void collision_resolve(Transform* transform,
     gfc_vector3d_scale(move, info->normal, -push);
     gfc_vector3d_add(p, p, move);
     *transform->pos = p;
+}
+
+Entity* entity_player_reference() {
+    if (!entity_manager.player_reference)
+        return NULL;
+
+    return entity_manager.player_reference;
+}
+
+void entity_set_player_reference(Entity* player) {
+    if (!player)
+        return;
+
+    entity_manager.player_reference = player;
 }

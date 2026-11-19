@@ -178,9 +178,9 @@ uint8_t level_setup() {
             sj_get_float_value(sj_array_get_nth(subvalue, 0),
                                &level_manager.level_list[i].bounds.w);
             sj_get_float_value(sj_array_get_nth(subvalue, 1),
-                               &level_manager.level_list[i].bounds.h);
-            sj_get_float_value(sj_array_get_nth(subvalue, 2),
                                &level_manager.level_list[i].bounds.d);
+            sj_get_float_value(sj_array_get_nth(subvalue, 2),
+                               &level_manager.level_list[i].bounds.h);
         }
         uint32_t* index = (uint32_t*)malloc(sizeof(uint32_t));
         *index = i;
@@ -338,6 +338,40 @@ uint32_t level_get_current_index() {
 void level_clamp_bounds(GFC_Vector3D* vec) {
     if (!vec)
         return;
+
+    if (!level_is_active())
+        return;
+
+    GFC_Box* box;
+
+    uint32_t* id =
+        (uint32_t*)gfc_hashmap_get(level_manager.level_hash, level_manager.current_level);
+
+    box = &level_manager.level_list[*id].bounds;
+
+    if (vec->x > box->x) {
+        vec->x = box->x;
+    }
+
+    if (vec->y > box->y) {
+        vec->y = box->y;
+    }
+
+    if (vec->z > box->z) {
+        vec->z = box->z;
+    }
+
+    if (vec->x < box->x - box->w) {
+        vec->x = box->x - box->w;
+    }
+
+    if (vec->y < box->y - box->d) {
+        vec->y = box->y - box->d;
+    }
+
+    if (vec->z < box->z - box->h) {
+        vec->z = box->z - box->h;
+    }
 }
 
 void level_select(const char* name) {
