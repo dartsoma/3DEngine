@@ -1,0 +1,7 @@
+{
+    "model":
+    {
+        "obj":"models/map/booster.obj",
+        "texture":"models/map/boost.png"
+    }
+}

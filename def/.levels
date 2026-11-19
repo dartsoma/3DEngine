@@ -1,28 +1,247 @@
 {
-    "levels":[{
-            "name": "base",
-            "sky": "sky.model",
-            "statics": [
-            {
-              "name": "grass",
-              "collisiontype": 1,
-              "collisionmask": 0,
-              "position":[0,0,-50],
-              "rotation":[0,0,0],
-              "scale": [5,5,5],
-              "model": "models/map/grass.model"
-            }],
-            "entities":[{
-              "type": 1,
-              "position":[0,0,0],
-              "rotation":[0,0,0],
-              "scale": [1,1,1]
-            }],
-            "music": "music.ogg",
-            "bounds":{
-            "dim":[250,250,500],
-            "size":[500,500,700]
-            }
+  "levels": [
+    {
+      "name": "base",
+      "sky": "sky.model",
+      "statics": [
+        {
+          "name": "map",
+          "collisiontype": 1,
+          "collisionmask": 0,
+          "position": [
+            0,
+            0,
+            -100
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            5,
+            5,
+            5
+          ],
+          "model": "models/map/map-1.model"
+        },
+        {
+          "name": "rocks",
+          "collisiontype": 1,
+          "collisionmask": 0,
+          "position": [
+            0,
+            0,
+            -100
+          ],
+          "rotation": [
+            5,
+            5,
+            5
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "model": "models/map/rocks.model"
+        }
+      ],
+      "entities": [
+        {
+          "type": 6,
+          "position": [
+            87,
+            -630,
+            -70
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            4,
+            4,
+            4
+          ]
+        },
+        {
+          "type": 7,
+          "position": [
+            47.25,
+            -630,
+            -70
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            4,
+            4,
+            4
+          ]
+        },
+        {
+          "type": 8,
+          "position": [
+            7.5,
+            -630,
+            -70
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            4,
+            4,
+            4
+          ]
+        },
+        {
+          "type": 10,
+          "position": [
+            -32.25,
+            -630,
+            -70
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            4,
+            4,
+            4
+          ]
+        },
+        {
+          "type": 9,
+          "position": [
+            -72,
+            -630,
+            -70
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            4,
+            4,
+            4
+          ]
+        },
+        {
+          "type": 1,
+          "position": [
+            87,
+            -580,
+            -70
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": 2,
+          "position": [
+            47.25,
+            -580,
+            -30
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": 3,
+          "position": [
+            7.5,
+            -580,
+            -70
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": 4,
+          "position": [
+            -32.25,
+            -580,
+            -70
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": 5,
+          "position": [
+            -72,
+            -580,
+            -70
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "music": "music.ogg",
+      "bounds": {
+        "dim": [
+          500,
+          800,
+          1000
+        ],
+        "size": [
+          1000,
+          1700,
+          1300
+        ]
+      }
     }
   ]
 }

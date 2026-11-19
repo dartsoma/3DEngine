@@ -3,78 +3,65 @@
 #include "entity_core.h"
 #include "gfc_types.h"
 #include "simple_logger.h"
+#include "player.h"
 #include <stdint.h>
 
-// 0 - null, 1 - Void, 2 - Anchor, 3 - Boost, 4 - Pile, 5 - Trash
-
-// 5 - Boostpack 6 - Fake Boost Pack 7 - Jump Boost
 #define PROP_TAG 0
 
-Entity* prop_create(uint8_t tag) {
-    Entity* prop;
+const char* prop_models[11] = {
+    NULL,                    // 0
+    "models/map/void.model", // 1
+    "models/map/anchor.model",
+    "models/map/booster.model",
+    "models/map/pile.model",
+    "models/map/trash.model",     // 5
+    "models/map/boostpack.model", // 6
+    "models/map/fakepack.model",
+    "models/map/jumppack.model",
+    "models/map/abilitypack.model",
+    "models/map/gravitypack.model", // 10
+};
 
-    prop = entity_create();
+void prop_try_pickup(Entity* self, int effect);
+KinematicsComponent* prop_zone_player(Entity* self);
+
+Entity* prop_create(uint8_t tag) {
+    if (tag < 1 || tag > 10) {
+        slog("null prop scrapped");
+        return NULL;
+    }
+
+    Entity* prop = entity_create();
+    if (!prop)
+        return NULL;
 
     prop->free = prop_free;
     prop->update = prop_update;
     prop->think = prop_think;
     prop->draw = prop_draw;
 
-    prop->tag |= EntityRender;
-    prop->tag |= EntityTransform;
-    prop->tag |= EntityCollision;
-    prop->tag |= EntityResource;
+    prop->tag |= EntityRender | EntityTransform | EntityCollision | EntityResource;
 
-    RenderComponent* render = (RenderComponent*)entity_get_own_render(prop);
-    TransformComponent* transform = (TransformComponent*)entity_get_own_transform(prop);
-    ResourceComponent* resource = (ResourceComponent*)entity_get_own_resource(prop);
-    CollisionComponent* collision = (CollisionComponent*)entity_get_own_collision(prop);
+    RenderComponent* render = entity_get_own_render(prop);
+    TransformComponent* transform = entity_get_own_transform(prop);
+    ResourceComponent* resource = entity_get_own_resource(prop);
+    CollisionComponent* collision = entity_get_own_collision(prop);
+    if (!render || !transform || !resource || !collision) {
+        slog("prop components failed");
+        return NULL;
+    }
 
     transform->scale = gfc_vector3d(1, 1, 1);
     transform->pos = gfc_vector3d(0, 0, 0);
 
     resource->i_data = gfc_allocate_array(sizeof(EntityResourceI), 1);
+    resource->i_data[PROP_TAG].value = tag;
 
-    switch (tag) {
-        case 1:
-            render->model = model_load("models/dino/dino.model");
-
-            if (!render->model)
-
-                break;
-        case 2:
-            render->model = model_load("models/dino/dino.model");
-
-            if (!render->model)
-
-                break;
-        case 3:
-            render->model = model_load("models/dino/dino.model");
-
-            if (!render->model)
-
-                break;
-        case 4:
-            render->model = model_load("models/dino/dino.model");
-
-            if (!render->model)
-
-                break;
-        case 5:
-            render->model = model_load("models/dino/dino.model");
-
-            if (!render->model)
-
-                break;
-        default:
-
-            slog("null prop created and scrapped");
-            prop_free(prop);
-            return NULL;
-            break;
+    render->model = model_load(prop_models[tag]);
+    if (!render->model) {
+        slog("missing model for prop %d, using placeholder", tag);
+        render->model = model_load("models/dino/dino.model");
     }
-
-    render->model = model_load("models/dino/dino.model");
 
     gfc_matrix4_identity(render->mat);
     render->color = GFC_COLOR_WHITE;
@@ -84,6 +71,129 @@ Entity* prop_create(uint8_t tag) {
     collision->mask = 0;
 
     return prop;
+}
+
+void prop_anchor(Entity* self) {
+    KinematicsComponent* k = prop_zone_player(self);
+    if (!k)
+        return;
+    k->vel.x *= ANCHOR_DRAG;
+    k->vel.y *= ANCHOR_DRAG;
+    k->vel.z -= ANCHOR_PULL; // kinematics_velocity clamps to terminal velocity
+}
+
+void prop_boost(Entity* self) {
+    KinematicsComponent* k = prop_zone_player(self);
+    if (!k)
+        return;
+
+    // one launch per pass: don't re-fire while already flying upward
+    if (k->vel.z >= BOOST_LAUNCH_UP * 0.5f)
+        return;
+
+    TransformComponent* t = entity_get_own_transform(self);
+    float yaw = t->rot.z * GFC_DEGTORAD; // prop rotation from the level file (degrees)
+
+    k->vel.z = BOOST_LAUNCH_UP;
+    k->vel.x = cosf(yaw) * BOOST_LAUNCH_FWD;
+    k->vel.y = sinf(yaw) * BOOST_LAUNCH_FWD;
+}
+
+void prop_pile(Entity* self) {
+    KinematicsComponent* k = prop_zone_player(self);
+    if (!k)
+        return;
+    k->vel.x *= PILE_DRAG;
+    k->vel.y *= PILE_DRAG;
+}
+
+void prop_trash(Entity* self) {
+    KinematicsComponent* k = prop_zone_player(self);
+    if (!k)
+        return;
+    k->vel.x = 0;
+    k->vel.y = 0;
+}
+
+// only for pickups
+void prop_try_pickup(Entity* self, int effect) {
+    Entity* player = entity_player_reference();
+    if (!player)
+        return;
+
+    TransformComponent* pt = entity_get_own_transform(player);
+    TransformComponent* t = entity_get_own_transform(self);
+    if (!pt || !t)
+        return;
+
+    GFC_Vector3D diff;
+    gfc_vector3d_sub(diff, pt->pos, t->pos);
+    if (gfc_vector3d_magnitude(diff) > PROP_PICKUP_RADIUS)
+        return;
+
+    player_apply_effect(player, effect);
+    entity_free(self);
+}
+
+KinematicsComponent* prop_zone_player(Entity* self) {
+    Entity* player = entity_player_reference();
+    if (!player)
+        return NULL;
+
+    TransformComponent* pt = entity_get_own_transform(player);
+    TransformComponent* t = entity_get_own_transform(self);
+    KinematicsComponent* k = entity_get_own_kinematics(player);
+    if (!pt || !t || !k)
+        return NULL;
+
+    GFC_Vector3D diff;
+    gfc_vector3d_sub(diff, pt->pos, t->pos);
+    if (gfc_vector3d_magnitude(diff) > PROP_HIT_RADIUS * t->scale.x)
+        return NULL;
+
+    return k;
+}
+
+void prop_update(Entity* self) {
+    if (!self)
+        return;
+    ResourceComponent* resource = entity_get_own_resource(self);
+    if (!resource)
+        return;
+
+    uint8_t tag = (uint8_t)resource->i_data[PROP_TAG].value;
+
+    switch (tag) {
+        case 2:
+            prop_anchor(self);
+            break;
+        case 3:
+            prop_boost(self);
+            break;
+        case 4:
+            prop_pile(self);
+            break;
+        case 5:
+            prop_trash(self);
+            break;
+        case 6:
+            prop_try_pickup(self, EFFECT_BOOST);
+            break;
+        case 7:
+            prop_try_pickup(self, EFFECT_FAKEBOOST);
+            break;
+        case 8:
+            prop_try_pickup(self, EFFECT_JUMPBOOST);
+            break;
+        case 9:
+            prop_try_pickup(self, EFFECT_ABILITY);
+            break;
+        case 10:
+            prop_try_pickup(self, EFFECT_LOWGRAV);
+            break;
+        default:
+            break;
+    }
 }
 
 Entity* prop_spawn_at(uint8_t tag, GFC_Vector3D* vec) {
@@ -135,19 +245,6 @@ void prop_think(Entity* self) {
     if (!self)
         return;
 
-    ResourceComponent* resource = (ResourceComponent*)entity_get_own_resource(self);
-
-    uint8_t tag = (uint8_t)resource->i_data[PROP_TAG].value;
-
-    switch (tag) {
-        default:
-            break;
-    }
-}
-
-void prop_update(Entity* self) {
-    if (!self)
-        return;
     ResourceComponent* resource = (ResourceComponent*)entity_get_own_resource(self);
 
     uint8_t tag = (uint8_t)resource->i_data[PROP_TAG].value;

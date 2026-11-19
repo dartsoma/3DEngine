@@ -127,27 +127,20 @@ void setup_resource(ResourceComponent* resource) {
     resource->a_data[AXIS_CAMERA].axis.x = 0;
     resource->a_data[AXIS_CAMERA].axis.y = (GFC_PI / 6);
 
-    resource->f_data = gfc_allocate_array(sizeof(EntityResourceF), 6);
+    resource->f_data = gfc_allocate_array(sizeof(EntityResourceF), 10);
     resource->f_data[FLOAT_CAMERADISTANCE].value = 30;
 
     // setup timers
-    resource->f_data[FLOAT_ABILITY_1_TIMER].max = 1;
-    resource->f_data[FLOAT_ABILITY_2_TIMER].max = 1;
-    resource->f_data[FLOAT_ABILITY_3_TIMER].max = 1;
-    resource->f_data[FLOAT_ABILITY_4_TIMER].max = 1;
-    resource->f_data[FLOAT_ABILITY_5_TIMER].max = 1;
-
-    resource->f_data[FLOAT_ABILITY_1_TIMER].min = 0;
-    resource->f_data[FLOAT_ABILITY_2_TIMER].min = 0;
-    resource->f_data[FLOAT_ABILITY_3_TIMER].min = 0;
-    resource->f_data[FLOAT_ABILITY_4_TIMER].min = 0;
-    resource->f_data[FLOAT_ABILITY_5_TIMER].min = 0;
 
     resource->f_data[FLOAT_ABILITY_1_TIMER].value = 1;
     resource->f_data[FLOAT_ABILITY_2_TIMER].value = 1;
     resource->f_data[FLOAT_ABILITY_3_TIMER].value = 1;
     resource->f_data[FLOAT_ABILITY_4_TIMER].value = 1;
     resource->f_data[FLOAT_ABILITY_5_TIMER].value = 1;
+    resource->f_data[FLOAT_BOOST_TIMER].value = EFFECT_DURATION;
+    resource->f_data[FLOAT_SLOW_TIMER].value = EFFECT_DURATION;
+    resource->f_data[FLOAT_JUMPBOOST_TIMER].value = EFFECT_DURATION;
+    resource->f_data[FLOAT_LOWGRAV_TIMER].value = EFFECT_DURATION;
 
     resource->i_data = gfc_allocate_array(sizeof(EntityResourceI), 2);
     resource->i_data[INT_PLAYERFLAGS].value = 0;
@@ -283,17 +276,27 @@ void player_think(Entity* self) {
 void player_update(Entity* self) {
     if (!self)
         return;
-
+    int i;
     // phys
     TransformComponent* transform = (TransformComponent*)entity_get_own_transform(self);
     KinematicsComponent* kinematics = (KinematicsComponent*)entity_get_own_kinematics(self);
     ResourceComponent* resource = (ResourceComponent*)entity_get_own_resource(self);
 
-    if (resource->f_data[FLOAT_ABILITY_1_TIMER].value <= 0) {
-        resource->f_data[FLOAT_ABILITY_1_TIMER].value = 0;
-    } else {
-        resource->f_data[FLOAT_ABILITY_1_TIMER].value -= 0.016f;
+    // timer count
+    for (int i = FLOAT_ABILITY_1_TIMER; i < 10; i++) {
+        if (resource->f_data[i].value > 0)
+            resource->f_data[i].value -= 0.016f;
+        if (resource->f_data[i].value < 0)
+            resource->f_data[i].value = 0;
     }
+
+    // speed effects
+    float speed_mult = 1.0f;
+    if (resource->f_data[FLOAT_BOOST_TIMER].value > 0)
+        speed_mult = BOOST_VEL_MULT;
+    if (resource->f_data[FLOAT_SLOW_TIMER].value > 0)
+        speed_mult = SLOW_VEL_MULT;
+    kinematics->vel_max = BASE_VEL_MAX * speed_mult;
 
     if (player_flag_check(self, FLAG_GROUNDED)) {
         if (kinematics->vel.z < 0)
@@ -307,6 +310,8 @@ void player_update(Entity* self) {
     float g = FALL_ACC;
     if (player_flag_check(self, FLAG_FASTFALL))
         g *= FASTFALL_MULT;
+    if (resource->f_data[FLOAT_LOWGRAV_TIMER].value > 0)
+        g *= LOWGRAV_MULT;
     kinematics_fall(kinematics, g);
     kinematics_fall(kinematics, g);
     kinematics_accelerate(kinematics);
@@ -344,9 +349,8 @@ void player_update(Entity* self) {
     // slog("Velocity: %f, %f", kinematics->vel.x, kinematics->vel.y);
 
     //  slog("Player Update");
-    //  slog("Position: %f, %f, %f", transform->pos.x, transform->pos.y,
-    //      transform->pos.z);
-    //// slog("camera->rot: %f, %f", resource->a_data[AXIS_CAMERA].axis.x,
+    // slog("Position: %f, %f, %f", transform->pos.x, transform->pos.y, transform->pos.z);
+    // slog("camera->rot: %f, %f", resource->a_data[AXIS_CAMERA].axis.x,
     //  resource->a_data[AXIS_CAMERA].axis.y);
     return;
 }
@@ -378,8 +382,12 @@ void jump(Entity* self) {
         return;
     KinematicsComponent* kinematics = entity_get_own_kinematics(self);
     ResourceComponent* resource = entity_get_own_resource(self);
-    if (resource->i_data[INT_UNLOCKFLAGS].value & FLAG_ABILITY1)
-        kinematics->vel.z = JUMP_SPEED;
+    if (resource->i_data[INT_UNLOCKFLAGS].value & FLAG_ABILITY1) {
+        float speed = JUMP_SPEED;
+        if (resource->f_data[FLOAT_JUMPBOOST_TIMER].value > 0)
+            speed *= JUMPBOOST_MULT;
+        kinematics->vel.z = speed;
+    }
 }
 
 void slide(Entity* self) {
@@ -438,6 +446,43 @@ void toggle_player_flag(Entity* self, int flag) {
     ResourceComponent* resource = entity_get_own_resource(self);
 
     resource->i_data[INT_PLAYERFLAGS].value ^= flag;
+}
+
+void player_apply_effect(Entity* self, int effect) {
+    if (!self)
+        return;
+    ResourceComponent* r = entity_get_own_resource(self);
+    KinematicsComponent* k = entity_get_own_kinematics(self);
+    if (!r || !k)
+        return;
+
+    switch (effect) {
+        case EFFECT_BOOST:
+            r->f_data[FLOAT_SLOW_TIMER].value = 0;
+            r->f_data[FLOAT_BOOST_TIMER].value = EFFECT_DURATION;
+            k->boost = 4;
+            break;
+        case EFFECT_FAKEBOOST:
+            r->f_data[FLOAT_BOOST_TIMER].value = 0;
+            r->f_data[FLOAT_SLOW_TIMER].value = EFFECT_DURATION;
+            break;
+        case EFFECT_JUMPBOOST:
+            r->f_data[FLOAT_JUMPBOOST_TIMER].value = EFFECT_DURATION;
+            break;
+        case EFFECT_LOWGRAV:
+            r->f_data[FLOAT_LOWGRAV_TIMER].value = EFFECT_DURATION;
+            break;
+        case EFFECT_ABILITY:
+            // unlock the next locked ability (2..5)
+            for (int flag = FLAG_ABILITY2; flag <= FLAG_ABILITY5; flag <<= 1) {
+                if (!(r->i_data[INT_UNLOCKFLAGS].value & flag)) {
+                    r->i_data[INT_UNLOCKFLAGS].value |= flag;
+                    slog("Ability unlocked: %d", flag);
+                    break;
+                }
+            }
+            break;
+    }
 }
 
 /*

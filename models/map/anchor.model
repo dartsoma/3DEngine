@@ -1,0 +1,7 @@
+{
+    "model":
+    {
+        "obj":"models/map/anchor.obj",
+        "texture":"models/map/anchor.png"
+    }
+}

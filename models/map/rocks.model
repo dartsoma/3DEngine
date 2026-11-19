@@ -1,0 +1,7 @@
+{
+    "model":
+    {
+        "obj":"models/map/rocks.obj",
+        "texture":"models/map/rocks.png"
+    }
+}

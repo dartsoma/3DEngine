@@ -1,0 +1,7 @@
+{
+    "model":
+    {
+        "obj":"models/map/map-1.obj",
+        "texture":"models/map/map-1.png"
+    }
+}

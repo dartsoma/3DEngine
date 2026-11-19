@@ -70,12 +70,14 @@ int main(int argc, char* argv[]) {
 
     entity_manager_init(1000);
     level_setup();
+    level_select("base");
+    level_populate();
     player = player_create();
 
     // GFC_Matrix4 *view = gf3d_vgraphics_get_view_matrix();
     //  main game loop
     //
-    level_select("base");
+
     while (!_done) {
         gfc_input_update();
         gf2d_mouse_update();

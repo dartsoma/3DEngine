@@ -1,0 +1,7 @@
+{
+    "model":
+    {
+        "obj":"models/map/trash.obj",
+        "texture":"models/map/trash.png"
+    }
+}
