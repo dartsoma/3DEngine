@@ -9,15 +9,17 @@
 #include "gfc_types.h"
 #include "gfc_vector.h"
 #include "level.h"
+#include "player.h"
 #include "simple_logger.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MOVEMENT_FLOOR_ANGLE 0.5f      // in acos() would be 60 deg
-#define MOVEMENT_REVERSE_ACC_MULT 3.0f // extra push when fighting current momentum
-#define MOVEMENT_TURN_GRIP 0.35f       // 0 frictionless, 1 snap
-#define COLLISION_MAX_PUSH 1.0f        // no faster rise than this
+#define MOVEMENT_FLOOR_ANGLE 0.5f         // in acos() would be 60 deg
+#define MOVEMENT_REVERSE_ACC_MULT 3.0f    // extra push when fighting current momentum
+#define MOVEMENT_TURN_GRIP 0.35f          // 0 frictionless, 1 snap
+#define MOVEMENT_TERMINAL_VELOCITY -40.0f // fastest a player can fall
+#define COLLISION_MAX_PUSH 1.0f           // no faster rise than this
 
 typedef struct {
     Entity* entity_list;
@@ -426,8 +428,6 @@ void kinematics_accelerate(KinematicsComponent* kinematics) {
     if (!kinematics)
         return;
 
-    kinematics_fall(kinematics);
-
     float dx = kinematics->direction.x;
     float dy = kinematics->direction.y;
     float dlen = sqrtf(dx * dx + dy * dy);
@@ -444,7 +444,7 @@ void kinematics_accelerate(KinematicsComponent* kinematics) {
         kinematics->vel.y -= perpY * MOVEMENT_TURN_GRIP;
 
         // faster break
-        float accel = kinematics->acc_max;
+        float accel = kinematics->acc_max + (kinematics->boost / 4);
         if (along < 0)
             accel *= MOVEMENT_REVERSE_ACC_MULT;
 
@@ -456,46 +456,49 @@ void kinematics_accelerate(KinematicsComponent* kinematics) {
     }
 }
 
-void kinematics_fall(KinematicsComponent* kinematics) {
+void kinematics_fall(KinematicsComponent* kinematics, float scale) {
     if (!kinematics)
         return;
-
-    kinematics->acc.z = -9.8;
+    // sets the fall speed now
+    kinematics->acc.z = scale;
 }
 
 void kinematics_velocity(KinematicsComponent* kinematics) {
     if (!kinematics)
         return;
 
+    if (kinematics->brake == 1) {
+        kinematics->vel.x *= 0.88f;
+        kinematics->vel.y *= 0.88f;
+    }
+
     if (gfc_vector2d_magnitude(gfc_vector2d(kinematics->acc.x, kinematics->acc.y)) <= GFC_EPSILON) {
-        if (gfc_vector2d_magnitude(gfc_vector2d(kinematics->vel.x, kinematics->vel.x)) <=
+        kinematics->vel.x *= 0.96f;
+        kinematics->vel.y *= 0.96f;
+        if (gfc_vector2d_magnitude(gfc_vector2d(kinematics->vel.x, kinematics->vel.y)) <=
             GFC_EPSILON) {
-            kinematics->vel = gfc_vector3d(0, 0, kinematics->vel.z);
-            if (gfc_vector2d_magnitude(gfc_vector2d(kinematics->vel.x, kinematics->vel.y)) == 0)
-                return;
-        } else if (gfc_vector2d_magnitude(gfc_vector2d(kinematics->vel.x, kinematics->vel.y)) !=
-                   0) {
-            kinematics->vel.x *= 0.75;
-            kinematics->vel.y *= 0.75;
+            kinematics->vel.x = 0;
+            kinematics->vel.y = 0;
         }
     }
 
-    GFC_Vector3D acceleration;
-
-    acceleration = kinematics->acc;
-
-    gfc_vector3d_scale(acceleration, kinematics->acc, 0.016);
-    gfc_vector3d_add(kinematics->vel, acceleration, kinematics->vel);
-
-    float magnitude;
-    magnitude = gfc_vector2d_magnitude(gfc_vector2d(kinematics->vel.x, kinematics->vel.y));
-
-    if (magnitude > kinematics->vel_max + kinematics->vel_max + kinematics->boost) {
-        kinematics->vel.x =
-            kinematics->vel.x * (kinematics->vel_max + kinematics->boost / magnitude);
-        kinematics->vel.y =
-            kinematics->vel.y * (kinematics->vel_max + kinematics->boost / magnitude);
+    if (kinematics->brake == 0) {
+        kinematics->vel.x += kinematics->acc.x * 0.016f;
+        kinematics->vel.y += kinematics->acc.y * 0.016f;
     }
+
+    kinematics->vel.z += kinematics->acc.z * 0.016f;
+
+    float max = kinematics->vel_max + kinematics->boost;
+    float magnitude = gfc_vector2d_magnitude(gfc_vector2d(kinematics->vel.x, kinematics->vel.y));
+    if (magnitude > max) {
+        kinematics->vel.x = kinematics->vel.x / magnitude * max;
+        kinematics->vel.y = kinematics->vel.y / magnitude * max;
+    }
+
+    if (kinematics->vel.z < MOVEMENT_TERMINAL_VELOCITY)
+        kinematics->vel.z = MOVEMENT_TERMINAL_VELOCITY;
+
     if (kinematics->boost > 0) {
         kinematics->boost /= 2;
         if (kinematics->boost < GFC_EPSILON)
@@ -672,7 +675,7 @@ void entity_world_collision(Entity* self) {
                               static_model->model->mesh->bounds,
                               static_transform,
                               &collision_info) == 1) {
-            slog("passed_box");
+            // slog("passed_box");
             switch (collision->type) {
                 case 0:
 
@@ -739,8 +742,8 @@ void entity_world_collision(Entity* self) {
                                 break;
 
                             KinematicsComponent* kin = entity_get_own_kinematics(self);
-                            GFC_Vector3D n = collision_info.normal; // capsule -> surface
-                            float up = -n.z; // 1.0 = flat floor under the player
+                            GFC_Vector3D n = collision_info.normal; // capsule surface
+                            float up = -n.z; // 1 = flat floor under the player
                             float push =
                                 fminf(fmaxf(collision_info.penetration_depth - 0.005f, 0.0f),
                                       COLLISION_MAX_PUSH);
@@ -748,6 +751,11 @@ void entity_world_collision(Entity* self) {
                                 break;
 
                             if (up >= MOVEMENT_FLOOR_ANGLE) {
+                                if (entity_player_reference() == self) {
+                                    ResourceComponent* res = entity_get_own_resource(self);
+                                    if (res)
+                                        res->i_data[INT_PLAYERFLAGS].value |= FLAG_GROUNDED;
+                                }
                                 // standing on something walkable: push straight up, no sideways
                                 // shove
                                 entity_transform.pos->z += push / up;
@@ -1554,4 +1562,25 @@ void entity_set_player_reference(Entity* player) {
         return;
 
     entity_manager.player_reference = player;
+}
+
+uint8_t entity_in_player_range(Entity* self, float radius) {
+    Entity* player;
+
+    player = entity_player_reference();
+
+    if (!self)
+        return 0;
+
+    if (!player)
+        return 0;
+
+    TransformComponent* self_trans = entity_get_own_transform(self);
+    TransformComponent* player_trans = entity_get_own_transform(player);
+
+    if (gfc_vector3d_magnitude_between(self_trans->pos, player_trans->pos)) {
+        return 1;
+    }
+
+    return 0;
 }

@@ -1,6 +1,9 @@
 
 
 #include "level.h"
+#include "ent_props.h"
+#include "ent_enemies.h"
+#include "entity_component.h"
 #include "entity_core.h"
 #include "gfc_color.h"
 #include "gfc_hashmap.h"
@@ -236,6 +239,57 @@ uint8_t level_build() {
 
 // ready/ spawn entities
 uint8_t level_populate() {
+    int i;
+    Entity* ent;
+
+    if (strlen(level_manager.current_level) == 0) {
+        slog("level_build: NULL level name");
+        return 1;
+    }
+
+    int* index = gfc_hashmap_get(level_manager.level_hash, level_manager.current_level);
+
+    if (index == NULL) {
+        slog("level_build: level not found");
+        return 1;
+    }
+
+    if (*index >= level_manager.level_count) {
+        slog("level_build: invalid level index");
+        return 1;
+    }
+
+    Level* level = &level_manager.level_list[*index];
+
+    for (i = 0; i < level->entity_count; i++) {
+        // spawn mesh at these coordinates
+
+        if (level->entity_registry[i].type != 0) {
+            // 0 - 10 Prop
+            // 11 - 15 Enemy
+
+            if (level->entity_registry[i].type < 11) {
+                ent = prop_spawn_at(level->entity_registry[i].type, &level->entity_registry[i].pos);
+                if (!ent) {
+                    continue;
+                }
+                TransformComponent* transform = entity_get_own_transform(ent);
+                transform->rot = level->entity_registry[i].rot;
+                transform->scale = level->entity_registry[i].scale;
+            } else if (level->entity_registry[i].type < 16 && level->entity_registry[i].type > 10) {
+                ent =
+                    enemy_spawn_at(level->entity_registry[i].type, &level->entity_registry[i].pos);
+                if (!ent) {
+                    continue;
+                }
+
+                TransformComponent* transform = entity_get_own_transform(ent);
+                transform->rot = level->entity_registry[i].rot;
+                transform->scale = level->entity_registry[i].scale;
+            }
+        }
+    }
+
     return 0;
 }
 

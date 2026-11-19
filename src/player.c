@@ -15,33 +15,6 @@
 #include "player.h"
 
 // axis data
-#define AXIS_MOVE 0
-#define AXIS_PREVMOVE 1
-#define AXIS_CAMERA 2
-
-#define FLOAT_CAMERADISTANCE 0
-#define FLOAT_ABILITY_1_TIMER 1
-#define FLOAT_ABILITY_2_TIMER 2
-#define FLOAT_ABILITY_3_TIMER 3
-#define FLOAT_ABILITY_4_TIMER 4
-#define FLOAT_ABILITY_5_TIMER 5
-
-#define INT_PLAYERFLAGS 0
-#define FLAG_GROUNDED 1
-#define FLAG_FASTFALL 2
-#define FLAG_SLIDING 4
-#define FLAG_JUMP_DEBOUNCE 8
-#define FLAG_DOUBLEJUMP_DEBOUNCE 16
-#define FLAG_BRAKING 32
-
-#define INT_UNLOCKFLAGS 1
-#define FLAG_ABILITY1 1
-#define FLAG_ABILITY2 2
-#define FLAG_ABILITY3 4
-#define FLAG_ABILITY4 8
-#define FLAG_ABILITY5 16
-
-#define CAPSULE_MAIN 0
 
 void move_left(Entity* self);
 void move_right(Entity* self);
@@ -52,6 +25,15 @@ void setup_render(RenderComponent* render);
 uint8_t setup_collision(CollisionComponent* collision, RenderComponent* render);
 void setup_kinematics(KinematicsComponent* kinematics);
 void setup_transform(TransformComponent* transform);
+Uint8 player_flag_check(Entity* self, int flag);
+
+void dive(Entity* self);
+
+void jump(Entity* self);
+
+void slide(Entity* self);
+
+void brake(Entity* self);
 
 Entity* player_create() {
     Entity* player;
@@ -80,7 +62,6 @@ Entity* player_create() {
         return NULL;
     }
 
-    setup_resource(resource);
     setup_resource(resource);
     setup_render(render);
 
@@ -137,6 +118,7 @@ void setup_transform(TransformComponent* transform) {
 }
 
 void setup_resource(ResourceComponent* resource) {
+    // Axis
     resource->a_data = gfc_allocate_array(sizeof(EntityResourceA), 3);
     resource->a_data[AXIS_MOVE].min = -1;
     resource->a_data[AXIS_MOVE].max = 1;
@@ -170,6 +152,13 @@ void setup_resource(ResourceComponent* resource) {
     resource->i_data = gfc_allocate_array(sizeof(EntityResourceI), 2);
     resource->i_data[INT_PLAYERFLAGS].value = 0;
     resource->i_data[INT_UNLOCKFLAGS].value = 0;
+
+    // Abilities
+    resource->i_data[INT_UNLOCKFLAGS].value |= FLAG_ABILITY1;
+    resource->i_data[INT_UNLOCKFLAGS].value |= FLAG_ABILITY2;
+    resource->i_data[INT_UNLOCKFLAGS].value |= FLAG_ABILITY3;
+    resource->i_data[INT_UNLOCKFLAGS].value |= FLAG_ABILITY4;
+    resource->i_data[INT_UNLOCKFLAGS].value |= FLAG_ABILITY5;
 }
 
 void player_free(Entity* self) {
@@ -239,6 +228,43 @@ void player_think(Entity* self) {
     if (gfc_input_key_held("a"))
         resource->a_data[AXIS_MOVE].axis.y = 1;
 
+    // jump
+    if (player_flag_check(self, FLAG_GROUNDED) && gfc_input_key_held("SPACE")) {
+        transform->scale.z = 1; // in the case that char is crouching
+        // if (resource->f_data[FLOAT_ABILITY_1_TIMER].value == 0)
+        resource->i_data[INT_PLAYERFLAGS].value |= FLAG_JUMPING;
+        // resource->f_data[FLOAT_ABILITY_1_TIMER].value = 1;
+    }
+
+    if (gfc_input_key_pressed("LCTRL")) {
+        resource->i_data[INT_PLAYERFLAGS].value &= FLAG_SLIDING;
+        transform->scale.z = 0.5;
+    }
+    // dive
+
+    if (gfc_input_key_held("LCTRL")) {
+        if (player_flag_check(self, FLAG_GROUNDED) == 0) {
+            slide(self);
+            kinematics->override.x = kinematics->direction.x;
+            kinematics->override.y = kinematics->direction.y;
+        } else {
+            dive(self);
+        }
+    }
+
+    if (gfc_input_key_released("LCTRL")) {
+        resource->i_data[INT_PLAYERFLAGS].value &= ~FLAG_SLIDING;
+        transform->scale.z = 1;
+        kinematics->override.x = 0;
+        kinematics->override.y = 0;
+    }
+
+    if (gfc_input_key_held("LSHIFT")) {
+        brake(self);
+    } else {
+        kinematics->brake = 0;
+    }
+
     kinematics->direction = gfc_vector2d(0, 0);
 
     float yaw = resource->a_data[AXIS_CAMERA].axis.x;
@@ -247,6 +273,9 @@ void player_think(Entity* self) {
 
     kinematics->direction.x = forward * sinf(yaw) + strafe * cosf(yaw);
     kinematics->direction.y = -forward * cosf(yaw) + strafe * sinf(yaw);
+
+    if (gfc_vector2d_magnitude(kinematics->override) >= GFC_EPSILON)
+        gfc_vector2d_copy(kinematics->direction, kinematics->override);
 
     transform->rot.z = resource->a_data[AXIS_CAMERA].axis.x;
 }
@@ -260,11 +289,55 @@ void player_update(Entity* self) {
     KinematicsComponent* kinematics = (KinematicsComponent*)entity_get_own_kinematics(self);
     ResourceComponent* resource = (ResourceComponent*)entity_get_own_resource(self);
 
+    if (resource->f_data[FLOAT_ABILITY_1_TIMER].value <= 0) {
+        resource->f_data[FLOAT_ABILITY_1_TIMER].value = 0;
+    } else {
+        resource->f_data[FLOAT_ABILITY_1_TIMER].value -= 0.016f;
+    }
+
+    if (player_flag_check(self, FLAG_GROUNDED)) {
+        if (kinematics->vel.z < 0)
+            kinematics->vel.z = 0;
+        resource->i_data[INT_PLAYERFLAGS].value &= ~FLAG_FASTFALL;
+
+        if (player_flag_check(self, FLAG_JUMPING))
+            jump(self);
+    }
+    resource->i_data[INT_PLAYERFLAGS].value &= ~FLAG_JUMPING;
+    float g = FALL_ACC;
+    if (player_flag_check(self, FLAG_FASTFALL))
+        g *= FASTFALL_MULT;
+    kinematics_fall(kinematics, g);
+    kinematics_fall(kinematics, g);
     kinematics_accelerate(kinematics);
     kinematics_velocity(kinematics);
-    gfc_vector3d_add(transform->pos, kinematics->vel, transform->pos);
 
+    // collision will re-set this during the steps below
+    resource->i_data[INT_PLAYERFLAGS].value &= ~FLAG_GROUNDED;
+
+    // never move more than half a capsule radius per collision check
+    CollisionComponent* collision = entity_get_own_collision(self);
+    float step_max = 0.5f;
+    if (collision && collision->capsule)
+        step_max = fmaxf(collision->capsule[0].radius * 0.5f, 0.1f);
+
+    int steps = (int)ceilf(gfc_vector3d_magnitude(kinematics->vel) / step_max);
+    if (steps < 1)
+        steps = 1;
+    if (steps > 16)
+        steps = 16;
+
+    for (int i = 0; i < steps; i++) {
+        GFC_Vector3D step;
+        gfc_vector3d_scale(step, kinematics->vel, 1.0f / steps);
+        gfc_vector3d_add(transform->pos, transform->pos, step);
+        entity_world_collision(self); // zeroes vel.z when it lands, so later steps stop
+    }
+
+    float before = transform->pos.z;
     level_clamp_bounds(&transform->pos);
+    if (transform->pos.z < before && kinematics->vel.z > 0)
+        kinematics->vel.z = 0;
     // slog("Direction: %f, %f", kinematics->direction.x,
     // kinematics->direction.y);
 
@@ -293,9 +366,9 @@ void player_draw(Entity* self) {
 void dive(Entity* self) {
     if (!self)
         return;
-    KinematicsComponent* kinematics = (KinematicsComponent*)entity_get_own_kinematics(self);
+
     ResourceComponent* resource = entity_get_own_resource(self);
-    if ((resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 0) {
+    if (resource->i_data[INT_UNLOCKFLAGS].value & FLAG_ABILITY2) {
         resource->i_data[INT_PLAYERFLAGS].value |= FLAG_FASTFALL;
     }
 }
@@ -303,32 +376,29 @@ void dive(Entity* self) {
 void jump(Entity* self) {
     if (!self)
         return;
-    KinematicsComponent* kinematics = (KinematicsComponent*)entity_get_own_kinematics(self);
+    KinematicsComponent* kinematics = entity_get_own_kinematics(self);
     ResourceComponent* resource = entity_get_own_resource(self);
-    if ((resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 1) {
-        kinematics->vel.z = 18;
-    } else
-        // air njump
-        if ((resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 1 &&
-            (player_ability_check(self, FLAG_ABILITY1)) != 0) {
-            kinematics->vel.z = 18;
-        }
+    if (resource->i_data[INT_UNLOCKFLAGS].value & FLAG_ABILITY1)
+        kinematics->vel.z = JUMP_SPEED;
 }
 
 void slide(Entity* self) {
+    TransformComponent* transform = (TransformComponent*)entity_get_own_transform(self);
     KinematicsComponent* kinematics = (KinematicsComponent*)entity_get_own_kinematics(self);
     ResourceComponent* resource = entity_get_own_resource(self);
-    if (kinematics->acc.z < 0 && (resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 0) {
-        if (kinematics->boost <= 0) {
-            kinematics->boost = 4;
-        }
+    if (resource->i_data[INT_UNLOCKFLAGS].value & FLAG_ABILITY3) {
+        kinematics->boost = 4;
+
+        resource->i_data[INT_PLAYERFLAGS].value |= FLAG_SLIDING;
     }
 }
 
 void brake(Entity* self) {
     KinematicsComponent* kinematics = (KinematicsComponent*)entity_get_own_kinematics(self);
     ResourceComponent* resource = entity_get_own_resource(self);
-    if (kinematics->acc.z < 0 && (resource->i_data[INT_PLAYERFLAGS].value & FLAG_GROUNDED) == 0) {
+    if (resource->i_data[INT_UNLOCKFLAGS].value & FLAG_ABILITY3) {
+        kinematics->brake = 1;
+        resource->i_data[INT_PLAYERFLAGS].value |= FLAG_BRAKING;
     }
 }
 
@@ -343,12 +413,31 @@ Uint8 player_ability_check(Entity* self, int flag) {
     return 0;
 }
 
+Uint8 player_flag_check(Entity* self, int flag) {
+    if (!self)
+        return 0;
+
+    ResourceComponent* resource = entity_get_own_resource(self);
+    if ((resource->i_data[INT_PLAYERFLAGS].value & flag) != 0) {
+        return 1;
+    }
+    return 0;
+}
+
 void toggle_ability_flag(Entity* self, int flag) {
     if (!self)
         return;
     ResourceComponent* resource = entity_get_own_resource(self);
 
     resource->i_data[INT_UNLOCKFLAGS].value ^= flag;
+}
+
+void toggle_player_flag(Entity* self, int flag) {
+    if (!self)
+        return;
+    ResourceComponent* resource = entity_get_own_resource(self);
+
+    resource->i_data[INT_PLAYERFLAGS].value ^= flag;
 }
 
 /*

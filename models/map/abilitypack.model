@@ -1,0 +1,7 @@
+{
+    "model":
+    {
+        "obj":"models/map/powerup.obj",
+        "texture":"models/map/abilitypack.png"
+    }
+}

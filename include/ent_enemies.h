@@ -17,15 +17,15 @@
 //
 //
 
-Entity *enemy_create(uint8_t tag);
+Entity* enemy_create(uint8_t tag);
 
-void entity_spawn_at(uint8_t tag, Transform *transform);
+Entity* enemy_spawn_at(uint8_t tag, GFC_Vector3D* vec);
 
-void enemy_free(Entity *self);
+void enemy_free(Entity* self);
 
-void enemy_think(Entity *self);
+void enemy_think(Entity* self);
 
-void enemy_update(Entity *self);
+void enemy_update(Entity* self);
 
-void enemy_draw(Entity *self);
+void enemy_draw(Entity* self);
 #endif

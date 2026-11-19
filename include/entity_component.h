@@ -30,6 +30,8 @@ typedef struct {
 typedef struct {
     GFC_Vector3D vel;
     GFC_Vector3D acc;
+    GFC_Vector2D override;
+    uint8_t brake;
     float boost;
     float vel_max;
     float acc_max;
@@ -141,7 +143,7 @@ void entity_remove_all_component(uint32_t id);
 void* entity_get_component(uint32_t id, EntityComponentType type);
 
 void kinematics_accelerate(KinematicsComponent* kinematics); // Lateral
-void kinematics_fall(KinematicsComponent* kinematics);
+void kinematics_fall(KinematicsComponent* kinematics, float scale);
 void kinematics_velocity(KinematicsComponent* kinematics);
 
 TransformComponent* entity_get_transform(uint32_t id);

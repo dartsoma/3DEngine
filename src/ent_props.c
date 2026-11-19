@@ -7,6 +7,7 @@
 
 // 0 - null, 1 - Void, 2 - Anchor, 3 - Boost, 4 - Pile, 5 - Trash
 
+// 5 - Boostpack 6 - Fake Boost Pack 7 - Jump Boost
 #define PROP_TAG 0
 
 Entity* prop_create(uint8_t tag) {
@@ -85,12 +86,16 @@ Entity* prop_create(uint8_t tag) {
     return prop;
 }
 
-void prop_spawn_at(uint8_t tag, Transform* transform) {
+Entity* prop_spawn_at(uint8_t tag, GFC_Vector3D* vec) {
     Entity* prop = prop_create(tag);
+
+    if (!prop)
+        return NULL;
 
     TransformComponent* oldtransform = entity_get_own_transform(prop);
 
-    oldtransform->pos = *transform->pos;
+    oldtransform->pos = *vec;
+    return prop;
 }
 
 void prop_free(Entity* self) {
