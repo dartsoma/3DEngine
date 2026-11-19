@@ -5,6 +5,7 @@
 #include "simple_logger.h"
 #include "player.h"
 #include <stdint.h>
+#include <stdlib.h>
 
 #define PROP_TAG 0
 
@@ -71,6 +72,13 @@ Entity* prop_create(uint8_t tag) {
     collision->mask = 0;
 
     return prop;
+}
+
+void prop_void(Entity* self) {
+    KinematicsComponent* k = prop_zone_player(self);
+    if (!k)
+        return;
+    exit(1);
 }
 
 void prop_anchor(Entity* self) {
@@ -164,6 +172,9 @@ void prop_update(Entity* self) {
     uint8_t tag = (uint8_t)resource->i_data[PROP_TAG].value;
 
     switch (tag) {
+        case 1:
+            prop_void(self);
+            break;
         case 2:
             prop_anchor(self);
             break;
