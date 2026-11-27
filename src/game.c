@@ -31,6 +31,7 @@ extern int __DEBUG;
 static int _done = 0;
 static Uint32 frame_delay = 33;
 static float fps = 0;
+char name[255];
 
 void parse_arguments(int argc, char* argv[]);
 void game_frame_delay();
@@ -113,8 +114,8 @@ int main(int argc, char* argv[]) {
 
         entity_manager_draw();
         level_build();
-
-        gf2d_font_draw_line_tag("ALT+F4 to exit", FT_H1, GFC_COLOR_WHITE, gfc_vector2d(10, 10));
+        snprintf(name, sizeof(name), "Speed: %f", player_get_speed(player));
+        gf2d_font_draw_line_tag(name, FT_H1, GFC_COLOR_WHITE, gfc_vector2d(10, 10));
         gf2d_mouse_draw();
         gf3d_vgraphics_render_end();
         if (gfc_input_command_down("exit"))

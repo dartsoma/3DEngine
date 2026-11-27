@@ -1,6 +1,7 @@
 #ifndef __PLAYER_H__
 #define __PLAYER_H__
 
+#include <stdint.h>
 #define EFFECT_BOOST 1
 #define EFFECT_FAKEBOOST 2
 #define EFFECT_JUMPBOOST 3
@@ -69,5 +70,7 @@ void toggle_ability_flag(Entity* self, int flag);
 void toggle_player_flag(Entity* self, int flag);
 
 void player_apply_effect(Entity* self, int effect);
+
+float player_get_speed(Entity* self);
 
 #endif

@@ -92,6 +92,14 @@ void setup_render(RenderComponent* render) {
     render->color = GFC_COLOR_WHITE;
 }
 
+float player_get_speed(Entity* self) {
+    KinematicsComponent* kinematics = (KinematicsComponent*)entity_get_own_kinematics(self);
+
+    float magnitude = gfc_vector3d_magnitude(kinematics->vel);
+
+    return magnitude;
+}
+
 uint8_t setup_collision(CollisionComponent* collision, RenderComponent* render) {
     collision->type = 2;
     collision->layer = 1;
